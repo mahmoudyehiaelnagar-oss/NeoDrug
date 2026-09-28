@@ -348,40 +348,12 @@ body {
     <pre id="ocr-result" style="margin-top:1rem; padding:1rem; background:#fff; border:1px solid var(--border); border-radius:8px; max-height:400px; overflow:auto; white-space:pre-wrap; width:100%;"></pre>
 
     <pre id="ocr-ai-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
-    <script>
-    // OpenAI block removed; using Gemini for image analysis.
-    </script>
 
 
 
 
-        if (!apiKey) { alert('مفتاح API مطلوب'); return; }
-        try {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [{ role: 'user', content: `حلل النص التالي من الروشتة وقدم ملخصًا باللغة العربية مع توضيح الأدوية والجرعات إن وجدت:\n\n${text}` }],
-              max_tokens: 500,
-              temperature: 0.2
-            })
-          });
-          const data = await response.json();
-          if (data.error) {
-            document.getElementById('ocr-ai-result').textContent = 'خطأ في طلب AI: ' + data.error.message;
-          } else {
-            const answer = data.choices[0].message.content.trim();
-            document.getElementById('ocr-ai-result').textContent = answer;
-          }
-        } catch (err) {
-          document.getElementById('ocr-ai-result').textContent = 'فشل الاتصال بـ OpenAI: ' + err;
-        }
-      });
-    </script>
+
+
 
   <!-- سؤال من المستخدم بعد استخراج النص -->
   <div style="margin-top:1rem;">
