@@ -4,10 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Neo Drug — الصفحة الرئيسية</title>
+<!-- rebuild trigger -->
 <meta name="theme-color" content="#0d9488">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="creative-theme.css">
+<script>
+  const OMNI_API_KEY = "sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0";
+</script>
 <style>
 :root {
   --bg: oklch(98% 0.005 240);
@@ -346,7 +350,7 @@ body {
       document.getElementById('ocr-ai-analyze').addEventListener('click', async () => {
         const text = window.__ocrText;
         if (!text) { alert('الرجاء استخراج النص أولاً'); return; }
-        const apiKey = prompt('أدخل مفتاح API الخاص بـ OpenAI (سيتم حفظه مؤقتاً فقط)');
+        const apiKey = typeof OMNI_API_KEY !== 'undefined' && OMNI_API_KEY ? OMNI_API_KEY : prompt('أدخل مفتاح API الخاص بـ OpenAI (المفتاح المخزن في OMNI غير متوفر)');
         if (!apiKey) { alert('مفتاح API مطلوب'); return; }
         try {
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
