@@ -339,7 +339,15 @@ body {
   <label for="ocr-file" style="display:block;margin-top:8px;margin-bottom:4px;">صورة للمعالجة:</label>
   <input type="file" id="ocr-file" accept="image/*" style="margin-bottom:0.6rem;" />>
   <button id="ocr-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">استخراج النص</button>
-  <pre id="ocr-result" style="margin-top:1rem; padding:1rem; background:#fff; border:1px solid var(--border); border-radius:8px; max-height:250px; overflow:auto; white-space:pre-wrap;"></pre>
+    <pre id="ocr-result" style="margin-top:1rem; padding:1rem; background:#fff; border:1px solid var(--border); border-radius:8px; max-height:250px; overflow:auto; white-space:pre-wrap;"></pre>
+    <button id="ocr-copy" style="margin-top:4px; background:var(--accent-tint); color:var(--accent-strong); border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">نسخ النتيجة</button>
+    <script>
+      document.getElementById('ocr-copy').addEventListener('click', () => {
+        const text = document.getElementById('ocr-result').textContent;
+        if (!text) { alert('لا توجد نتيجة لنسخها'); return; }
+        navigator.clipboard.writeText(text).then(() => alert('تم نسخ النص إلى الحافظة'));
+      });
+    </script>
 
   <!-- سؤال من المستخدم بعد استخراج النص -->
   <div style="margin-top:1rem;">
