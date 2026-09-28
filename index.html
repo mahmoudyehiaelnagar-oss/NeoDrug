@@ -330,36 +330,62 @@ body {
 <!-- OCR Section -->
 <div class="ocr-section" style="margin:2rem; padding:1rem; background:#f8f8f8; border-radius:12px;">
   <h2 style="margin-bottom:0.8rem;">استخراج النص من صورة (OCR)</h2>
-  <input type="file" id="ocr-file" accept="image/*" style="margin-bottom:0.6rem;" />
+    <label for="ocr-lang" style="display:block;margin-bottom:4px;">لغة التحليل:</label>
+  <select id="ocr-lang" style="margin-left:4px;">
+    <option value="ara">العربية</option>
+    <option value="eng">الإنجليزية</option>
+    <option value="ara+eng">العربية + الإنجليزية</option>
+  </select>
+  <label for="ocr-file" style="display:block;margin-top:8px;margin-bottom:4px;">صورة للمعالجة:</label>
+  <input type="file" id="ocr-file" accept="image/*" style="margin-bottom:0.6rem;" />>
   <button id="ocr-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">استخراج النص</button>
   <pre id="ocr-result" style="margin-top:1rem; padding:1rem; background:#fff; border:1px solid var(--border); border-radius:8px; max-height:250px; overflow:auto; white-space:pre-wrap;"></pre>
+
+  <!-- سؤال من المستخدم بعد استخراج النص -->
+  <div style="margin-top:1rem;">
+    <textarea id="ocr-question" name="ocr-question" rows="2" placeholder="اكتب سؤالًا حول النص المستخرج…" style="width:100%; padding:6px;"></textarea>
+    <button id="ocr-answer" name="ocr-answer" style="margin-top:4px; background:var(--accent-tint); color:var(--accent-strong); border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">إجابة</button>
+    <pre id="ocr-answer-result" style="margin-top:0.8rem; padding:0.8rem; background:#e8f5e9; border:1px solid #c8e6c9; border-radius:6px; white-space:pre-wrap;"></pre>
+  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
 <script>
 document.getElementById('ocr-run').addEventListener('click', async () => {
   const fileInput = document.getElementById('ocr-file');
   if (!fileInput.files[0]) { alert('اختر صورة أولاً'); return; }
-  const file = fileInput.files[0];
+  const lang = document.getElementById('ocr-lang').value;
   const reader = new FileReader();
   reader.onload = async () => {
     const imgData = reader.result;
     const { createWorker } = Tesseract;
-    const worker = createWorker({
-      logger: m => console.log('[OCR]', m)
-    });
+    const worker = createWorker({ logger: m => console.log('[OCR]', m) });
     try {
       await worker.load();
-      await worker.loadLanguage('ara');
-      await worker.initialize('ara');
+      await worker.loadLanguage(lang);
+      await worker.initialize(lang);
       const { data: { text } } = await worker.recognize(imgData);
-      document.getElementById('ocr-result').textContent = text.trim();
+      const cleaned = text.trim();
+      document.getElementById('ocr-result').textContent = cleaned;
+      window.__ocrText = cleaned;
     } catch (e) {
       document.getElementById('ocr-result').textContent = 'خطأ في التحليل: ' + e;
+      window.__ocrText = '';
     } finally {
       await worker.terminate();
     }
   };
   reader.readAsDataURL(file);
+});
+
+document.getElementById('ocr-answer').addEventListener('click', () => {
+  const question = document.getElementById('ocr-question').value.trim();
+  const text = window.__ocrText || '';
+  if (!question) { alert('اكتب سؤالًا أولاً'); return; }
+  if (!text) { alert('الرجاء استخراج النص أولاً'); return; }
+  const regex = new RegExp(question.split(' ').join('|'), 'i');
+  const matches = text.split(/[\r\n]+/).filter(line => regex.test(line));
+  const answer = matches.length ? matches.join('\n') : 'لم يتم العثور على معلومات مطابقة في النص.';
+  document.getElementById('ocr-answer-result').textContent = answer;
 });
 </script>
   </main>
@@ -392,3 +418,4 @@ document.getElementById('ocr-run').addEventListener('click', async () => {
 <script src="creative-background.js" defer></script>
 </body>
 </html>
+<!-- Rebuild trigger -->
