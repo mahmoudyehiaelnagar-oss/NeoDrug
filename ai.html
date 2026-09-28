@@ -459,9 +459,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const endpoint = 'http://localhost:20128/v1/chat/completions';
-    const apiKey = 'sk-9c72e3faf1beb0a3-c7a38b-8ded9255';
-    const modelName = imageUrl ? 'auto/best-vision' : 'auto/best-chat';
+    const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+    const apiKey = 'sk-9c72e3faf1beb0a3-3886ec-d1740f3d';
+    const modelName = imageUrl ? 'google/gemini-1.5-flash' : 'google/gemini-1.5-flash';
 
     let messages = [
       {
@@ -494,7 +494,9 @@ window.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://mahmoudyehiaelnagar-oss.github.io/NeoDrug/',
+          'X-Title': 'NeoDrug'
         },
         body: JSON.stringify({
           model: modelName,
@@ -509,7 +511,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       throw new Error('Invalid response structure');
     } catch (err) {
-      console.warn('AI API call failed or offline, using smart local clinical engine:', err);
+      console.warn('AI API call failed:', err);
       return localClinicalFallback(promptText);
     }
   }
