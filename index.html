@@ -340,12 +340,38 @@ body {
   <input type="file" id="ocr-file" accept="image/*" style="margin-bottom:0.6rem;" />>
   <button id="ocr-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">استخراج النص</button>
     <pre id="ocr-result" style="margin-top:1rem; padding:1rem; background:#fff; border:1px solid var(--border); border-radius:8px; max-height:400px; overflow:auto; white-space:pre-wrap; width:100%;"></pre>
-    <button id="ocr-copy" style="margin-top:4px; background:var(--accent-tint); color:var(--accent-strong); border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">نسخ النتيجة</button>
+    <button id="ocr-ai-analyze" style="margin-top:4px; background:var(--accent); color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">تحليل AI</button>
+    <pre id="ocr-ai-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
     <script>
-      document.getElementById('ocr-copy').addEventListener('click', () => {
-        const text = document.getElementById('ocr-result').textContent;
-        if (!text) { alert('لا توجد نتيجة لنسخها'); return; }
-        navigator.clipboard.writeText(text).then(() => alert('تم نسخ النص إلى الحافظة'));
+      document.getElementById('ocr-ai-analyze').addEventListener('click', async () => {
+        const text = window.__ocrText;
+        if (!text) { alert('الرجاء استخراج النص أولاً'); return; }
+        const apiKey = prompt('أدخل مفتاح API الخاص بـ OpenAI (سيتم حفظه مؤقتاً فقط)');
+        if (!apiKey) { alert('مفتاح API مطلوب'); return; }
+        try {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [{ role: 'user', content: `حلل النص التالي من الروشتة وقدم ملخصًا باللغة العربية مع توضيح الأدوية والجرعات إن وجدت:\n\n${text}` }],
+              max_tokens: 500,
+              temperature: 0.2
+            })
+          });
+          const data = await response.json();
+          if (data.error) {
+            document.getElementById('ocr-ai-result').textContent = 'خطأ في طلب AI: ' + data.error.message;
+          } else {
+            const answer = data.choices[0].message.content.trim();
+            document.getElementById('ocr-ai-result').textContent = answer;
+          }
+        } catch (err) {
+          document.getElementById('ocr-ai-result').textContent = 'فشل الاتصال بـ OpenAI: ' + err;
+        }
       });
     </script>
 
