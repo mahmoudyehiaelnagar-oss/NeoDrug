@@ -365,27 +365,26 @@ document.getElementById('ocr-run').addEventListener('click', async () => {
   const reader = new FileReader();
   reader.onload = async () => {
     const imgData = reader.result;
-    const worker = Tesseract.createWorker({ logger: m => console.log('[OCR]', m) });
     try {
-      await worker.load();
-      // Try loading the selected language; if it fails fall back to English.
+      // Try recognizing with selected language; fallback to English on error.
+      const recognizeWithLang = async (language) => {
+        return await Tesseract.recognize(imgData, language, {
+          logger: m => console.log('[OCR]', m)
+        });
+      };
+      let result;
       try {
-        await worker.loadLanguage(lang);
-        await worker.initialize(lang);
+        result = await recognizeWithLang(lang);
       } catch (langErr) {
-        console.warn('Failed loading language', lang, langErr);
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
+        console.warn('Failed recognizing with language', lang, langErr);
+        result = await recognizeWithLang('eng');
       }
-      const { data: { text } } = await worker.recognize(imgData);
-      const cleaned = text.trim();
+      const cleaned = result.data.text.trim();
       document.getElementById('ocr-result').textContent = cleaned;
       window.__ocrText = cleaned;
     } catch (e) {
       document.getElementById('ocr-result').textContent = 'خطأ في التحليل: ' + e;
       window.__ocrText = '';
-    } finally {
-      await worker.terminate();
     }
   };
   reader.readAsDataURL(fileInput.files[0]);
