@@ -365,8 +365,7 @@ document.getElementById('ocr-run').addEventListener('click', async () => {
   const reader = new FileReader();
   reader.onload = async () => {
     const imgData = reader.result;
-    const { createWorker } = Tesseract;
-    const worker = createWorker({ logger: m => console.log('[OCR]', m) });
+    const worker = Tesseract.createWorker({ logger: m => console.log('[OCR]', m) });
     try {
       await worker.load();
       await worker.loadLanguage(lang);
