@@ -341,7 +341,7 @@ body {
   <button id="analysis-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">تحليل الصورة</button>
   <pre id="analysis-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
 <script>
-const GEMINI_API_KEY = "AQ.Ab8RN6L-t3ddEUjGhaD1xoWWiD4ABYA9bHcW3740mVkKyvcgUQ";
+const GEMINI_API_KEY = ""; // Add your Gemini API key here (do not commit secrets)
 document.getElementById('analysis-run').addEventListener('click', async () => {
   const fileInput = document.getElementById('analysis-file');
   if (!fileInput.files[0]) { alert('اختر صورة أولاً'); return; }
