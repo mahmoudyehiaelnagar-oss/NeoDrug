@@ -459,7 +459,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+    const endpoint = 'http://localhost:20128/v1/chat/completions';
     const apiKey = 'sk-9c72e3faf1beb0a3-3886ec-d1740f3d';
     const modelName = imageUrl ? 'google/gemini-1.5-flash' : 'google/gemini-1.5-flash';
 
@@ -494,9 +494,7 @@ window.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://mahmoudyehiaelnagar-oss.github.io/NeoDrug/',
-          'X-Title': 'NeoDrug'
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: modelName,
