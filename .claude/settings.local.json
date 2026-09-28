@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E '\\\\.\\(js|html|md\\)$')",
+      "Bash(grep -nE \"class=.*app-container|class=.*appbar|<main|class=.*tabbar|function go\\\\\\(|id=\\\\\"scr-\" /home/mahmoud/Desktop/neo drug/index.html)",
+      "Bash(mkdir -p /home/mahmoud/.claude/plans)",
+      "Bash(python3 -c ' *)",
+      "WebSearch",
+      "Bash(curl -s -X POST https://api.omniroute.ai/v1/chat/completions -H 'Authorization: Bearer sk-9c72e3faf1beb0a3-c7a38b-8ded9255' -H 'Content-Type: application/json' -d '{\"model\": \"deepseek/deepseek-chat\", \"messages\": [{\"role\": \"user\", \"content\": \"مرحباً\"}]}')",
+      "Bash(curl -s -X POST https://openrouter.ai/api/v1/chat/completions -H 'Authorization: Bearer sk-9c72e3faf1beb0a3-c7a38b-8ded9255' -H 'Content-Type: application/json' -d '{\"model\": \"deepseek/deepseek-chat\", \"messages\": [{\"role\": \"user\", \"content\": \"hi\"}]}')",
+      "Bash(netstat -tuln)",
+      "Bash(curl -s http://localhost:20128/)",
+      "Bash(curl -s http://localhost:8080/)",
+      "Bash(curl -s -X POST http://localhost:20128/v1/chat/completions -H 'Authorization: Bearer sk-9c72e3faf1beb0a3-c7a38b-8ded9255' -H 'Content-Type: application/json' -d '{\"model\": \"gpt-3.5-turbo\", \"messages\": [{\"role\": \"user\", \"content\": \"مرحباً\"}]}')",
+      "Bash(curl -s \"http://localhost:20128/v1/models\" -H \"Authorization: Bearer sk-9c72e3faf1beb0a3-c7a38b-8ded9255\")",
+      "Bash(curl -s -X POST http://localhost:20128/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\": \"auto/best-chat\", \"messages\": [{\"role\": \"user\", \"content\": \"مرحباً\"}]}')",
+      "Bash(node -e \"const fs=readFileSync\\('drugs_data.js','utf8'\\);\")",
+      "Bash(node -e \"const fs = require\\('fs'\\); const content = fs.readFileSync\\('drugs_data.js', 'utf8'\\); console.log\\(content.slice\\(0, 500\\)\\);\")",
+      "Bash(node -e \"const fs = require\\('fs'\\); const content = fs.readFileSync\\('drugs_data.js', 'utf8'\\); const drugs = eval\\(content.replace\\('window.EGYDOSE_DATABASE =', ''\\)\\); console.log\\(drugs.filter\\(d => d.tradeEn && d.tradeEn.toLowerCase\\(\\).includes\\('panadol'\\)\\).length\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -X POST http://localhost:20128/v1/chat/completions -H 'Content-Type: application/json' -H 'Authorization: Bearer sk-9c72e3faf1beb0a3-c7a38b-8ded9255' -d '{\"model\":\"auto/best-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"مرحبا\"}]}')",
+      "Bash(curl -I -X OPTIONS http://localhost:20128/v1/chat/completions -H 'Origin: http://localhost:8080' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,authorization')",
+      "Bash(python3 neo-drug-app.py)",
+      "Bash(./build-deb.sh)",
+      "Bash(./install.sh)",
+      "Bash(WEBKIT_DEBUG=all python3 neo-drug-app.py)",
+      "Bash(python3 -c \"import gi; gi.require_version\\('Gtk', '3.0'\\); gi.require_version\\('WebKit2', '4.1'\\); from gi.repository import Gtk, WebKit2; w = WebKit2.WebView\\(\\); print\\('WebView created successfully'\\)\")",
+      "Bash(python3 -c \"import gi; gi.require_version\\('Gtk', '3.0'\\); gi.require_version\\('WebKit2', '4.1'\\); from gi.repository import Gtk, WebKit2; print\\(hasattr\\(WebKit2.WebView, 'set_background_color'\\)\\)\")",
+      "Bash(python3 -c \"import gi; gi.require_version\\('Gtk', '3.0'\\); gi.require_version\\('WebKit2', '4.1'\\); from gi.repository import Gtk, WebKit2; print\\(WebKit2.HardwareAccelerationPolicy.ON_DEMAND\\)\")",
+      "Bash(sudo apt install -y ./neo-drug_1.0.0_all.deb)",
+      "Bash(./run-linux.sh)",
+      "Bash(Body length: ' + document.body.innerHTML.length\", None, callback, None\\) *)",
+      "Bash(/home/mahmoud/.local/bin/neo-drug)",
+      "Bash(dpkg -l)"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Neo Drug
+Name[ar]=دليل الأدوية المصري (Neo Drug)
+GenericName=Egyptian Drug Guide & Medical AI
+GenericName[ar]=دليل الأدوية والبدائل الطبية
+Comment=Comprehensive Egyptian Drug Guide with AI Prescription Scanner and Drug Interaction Checker
+Comment[ar]=دليل الأدوية المصرية والبدائل وفاحص التفاعلات والمساعد الطبي الذكي
+Exec=neo-drug %u
+Icon=neo-drug
+Terminal=false
+Categories=MedicalSoftware;Science;Education;Healthcare;Utility;
+Keywords=medicine;drug;pharmacy;pharma;egydose;doctor;أدوية;دليل;صيدلية;روشتة;علاج;طبي;
+StartupNotify=true
+StartupWMClass=neo-drug-app.py
+MimeType=x-scheme-handler/neodrug;
+Actions=OpenDrugs;OpenChecker;OpenAI;
+
+[Desktop Action OpenDrugs]
+Name=Drug Search & Database
+Name[ar]=البحث في الأدوية والبدائل
+Exec=neo-drug drugs.html
+
+[Desktop Action OpenChecker]
+Name=Drug Interaction Checker
+Name[ar]=فاحص التفاعلات الدوائية
+Exec=neo-drug checker.html
+
+[Desktop Action OpenAI]
+Name=AI Clinical Assistant
+Name[ar]=المساعد الطبي الذكي
+Exec=neo-drug ai.html
