@@ -327,6 +327,41 @@ body {
         <a href="sync.html" class="btn btn-primary" style="font-size:12px;padding:8px 14px;text-decoration:none">إدارة وتصدير البيانات 📥</a>
       </div>
     </div>
+<!-- OCR Section -->
+<div class="ocr-section" style="margin:2rem; padding:1rem; background:#f8f8f8; border-radius:12px;">
+  <h2 style="margin-bottom:0.8rem;">استخراج النص من صورة (OCR)</h2>
+  <input type="file" id="ocr-file" accept="image/*" style="margin-bottom:0.6rem;" />
+  <button id="ocr-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">استخراج النص</button>
+  <pre id="ocr-result" style="margin-top:1rem; padding:1rem; background:#fff; border:1px solid var(--border); border-radius:8px; max-height:250px; overflow:auto; white-space:pre-wrap;"></pre>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+<script>
+document.getElementById('ocr-run').addEventListener('click', async () => {
+  const fileInput = document.getElementById('ocr-file');
+  if (!fileInput.files[0]) { alert('اختر صورة أولاً'); return; }
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const imgData = reader.result;
+    const { createWorker } = Tesseract;
+    const worker = createWorker({
+      logger: m => console.log('[OCR]', m)
+    });
+    try {
+      await worker.load();
+      await worker.loadLanguage('ara');
+      await worker.initialize('ara');
+      const { data: { text } } = await worker.recognize(imgData);
+      document.getElementById('ocr-result').textContent = text.trim();
+    } catch (e) {
+      document.getElementById('ocr-result').textContent = 'خطأ في التحليل: ' + e;
+    } finally {
+      await worker.terminate();
+    }
+  };
+  reader.readAsDataURL(file);
+});
+</script>
   </main>
 
   <!-- Navigation Tabbar (Sidebar on desktop, bottom bar on mobile) -->
