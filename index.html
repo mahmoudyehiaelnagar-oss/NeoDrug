@@ -368,8 +368,15 @@ document.getElementById('ocr-run').addEventListener('click', async () => {
     const worker = Tesseract.createWorker({ logger: m => console.log('[OCR]', m) });
     try {
       await worker.load();
-      await worker.loadLanguage(lang);
-      await worker.initialize(lang);
+      // Try loading the selected language; if it fails fall back to English.
+      try {
+        await worker.loadLanguage(lang);
+        await worker.initialize(lang);
+      } catch (langErr) {
+        console.warn('Failed loading language', lang, langErr);
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
+      }
       const { data: { text } } = await worker.recognize(imgData);
       const cleaned = text.trim();
       document.getElementById('ocr-result').textContent = cleaned;
