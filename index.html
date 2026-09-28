@@ -417,8 +417,7 @@ document.getElementById('ocr-run').addEventListener('click', async () => {
   const apiKey = OMNI_API_KEY;
   if (!apiKey) { console.warn('مفتاح API غير متوفر'); return; }
   try {
-    // استخراج النص من الصورة باستخدام نموذج رؤية
-    const visionResp = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -429,7 +428,7 @@ document.getElementById('ocr-run').addEventListener('click', async () => {
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract the prescription text from the image.' },
+            { type: 'text', text: 'تحليل صورة روشتة طبية: حدد جميع الأدوية والجرعات الموجودة في الصورة. إذا كانت الصورة عربية أجب بالعربية، وإلا بالإنجليزية.' },
             { type: 'image_url', image_url: { url: imgData } }
           ]
         }],
@@ -437,70 +436,17 @@ document.getElementById('ocr-run').addEventListener('click', async () => {
         temperature: 0.2
       })
     });
-    const visionData = await visionResp.json();
-    if (visionData.error) {
-      document.getElementById('ocr-ai-result').textContent = 'خطأ استخراج النص: ' + visionData.error.message;
-      return;
-    }
-    const extracted = visionData.choices[0].message.content.trim();
-    // عرض النص المستخرج
-    document.getElementById('ocr-result').textContent = extracted;
-    window.__ocrText = extracted;
-    // تحليل النص المستخرج وفق اللغة
-    const containsArabic = /[\u0600-\u06FF]/.test(extracted);
-    const promptText = containsArabic
-      ? `حلل النص التالي من الروشتة وقدم ملخصًا باللغة العربية مع توضيح الأدوية والجرعات إن وجدت:\n\n${extracted}`
-      : `Analyze the following prescription image text and provide a concise summary in English, highlighting any medications and dosages if present:\n\n${extracted}`;
-    const analysisResp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: promptText }],
-        max_tokens: 500,
-        temperature: 0.2
-      })
-    });
-    const analysisData = await analysisResp.json();
-    if (analysisData.error) {
-      document.getElementById('ocr-ai-result').textContent = 'خطأ تحليل AI: ' + analysisData.error.message;
+    const data = await response.json();
+    if (data.error) {
+      document.getElementById('ocr-ai-result').textContent = 'خطأ تحليل AI: ' + data.error.message;
     } else {
-      document.getElementById('ocr-ai-result').textContent = analysisData.choices[0].message.content.trim();
+      document.getElementById('ocr-ai-result').textContent = data.choices[0].message.content.trim();
     }
   } catch (err) {
     document.getElementById('ocr-ai-result').textContent = 'فشل الاتصال بـ OpenAI: ' + err;
   }
 })();
-      (async () => {
-        const apiKey = OMNI_API_KEY;
-        if (!apiKey) { console.warn('مفتاح API غير متوفر'); return; }
-        try {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [{ role: 'user', content: `حلل النص التالي من الروشتة وقدم ملخصًا باللغة العربية مع توضيح الأدوية والجرعات إن وجدت:\n\n${cleaned}` }],
-              max_tokens: 500,
-              temperature: 0.2
-            })
-          });
-          const data = await response.json();
-          if (data.error) {
-            document.getElementById('ocr-ai-result').textContent = 'خطأ في طلب AI: ' + data.error.message;
-          } else {
-            document.getElementById('ocr-ai-result').textContent = data.choices[0].message.content.trim();
-          }
-        } catch (err) {
-          document.getElementById('ocr-ai-result').textContent = 'فشل الاتصال بـ OpenAI: ' + err;
-        }
-      })();
+
     } catch (e) {
       document.getElementById('ocr-result').textContent = 'خطأ في التحليل: ' + e;
       window.__ocrText = '';
