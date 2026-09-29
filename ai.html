@@ -494,8 +494,7 @@ window.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'X-Api-Key': apiKey
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: modelName,

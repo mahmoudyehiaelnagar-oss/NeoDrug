@@ -342,7 +342,7 @@ body {
   <button id="analysis-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">تحليل الصورة</button>
   <pre id="analysis-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
 <script>
-const OPENROUTER_KEY = "sk-9c72e3faf1beb0a3-3886ec-d1740f3d";
+const NARA_KEY = "sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0";
 const resultBox = document.getElementById('analysis-result');
 
 document.getElementById('analysis-run').addEventListener('click', async () => {
@@ -358,16 +358,14 @@ document.getElementById('analysis-run').addEventListener('click', async () => {
       || 'اقرأ الروشتة الطبية بدقة، حدد التخصص الطبي للطبيب، استخرج أسماء الأدوية المكتوبة، واقترح بدائل متاحة في السوق المصري لكل دواء.';
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://router.bynara.id/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_KEY}`,
-          'HTTP-Referer': 'https://mahmoudyehiaelnagar-oss.github.io/NeoDrug/',
-          'X-Title': 'NeoDrug'
+          'Authorization': `Bearer ${NARA_KEY}`
         },
         body: JSON.stringify({
-          model: 'google/gemini-1.5-flash',
+          model: 'space-bunny-alpha',
           messages: [{
             role: 'user',
             content: [
@@ -380,7 +378,7 @@ document.getElementById('analysis-run').addEventListener('click', async () => {
 
       const data = await response.json();
       if (data.error) {
-        resultBox.textContent = 'خطأ من الخادم: ' + data.error.message;
+        resultBox.textContent = 'خطأ: ' + data.error.message;
         return;
       }
       const result = data.choices?.[0]?.message?.content?.trim() || 'لم يتم الحصول على نتيجة.';
