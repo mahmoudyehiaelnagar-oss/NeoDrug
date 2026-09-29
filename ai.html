@@ -460,7 +460,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   async function callAIAPI(promptText, imageUrl = null) {
     const GEMINI_KEY = 'AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig';
-    const endpoint   = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+    const endpoint   = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_KEY}`;
 
     let parts = [{ text: promptText }];
     if (imageUrl) {
