@@ -376,6 +376,16 @@ window.addEventListener('DOMContentLoaded', () => {
   const analyzeBtn = document.getElementById('analyzeBtn');
 
   let selectedImageBase64 = null;
+  // ذاكرة الجلسة التفاعلية للمحادثة والروشتات
+  let conversationHistory = [
+    {
+      role: "system",
+      content: `أنت مساعد صيدلاني وإكلينيكي خبير (Neo AI) متصل بقاعدة بيانات الأدوية المصرية (9,747 صنف).
+مهامك:
+1. عند قراءة الروشتة: قراءة كل الأدوية المكتوبة بالتفصيل سطراً بسطر دون اختصار مع توضيح الجرعات والبدائل المتاحة في السوق المصري.
+2. تذكر دائماً سياق المحادثة بالكامل، والرد بناءً على الروشتة أو الأدوية السابقة التي سأل عنها المستخدم في نفس الجلسة.`
+    }
+  ];
 
   dropZone.addEventListener('click', () => prescriptionInput.click());
   prescriptionInput.addEventListener('change', (e) => {
@@ -509,19 +519,16 @@ window.addEventListener('DOMContentLoaded', () => {
       userContent = promptText;
     }
 
-    const messages = [
-      {
-        role: "system",
-        content: `أنت مساعد صيدلاني وإكلينيكي خبير (Neo AI) متصل بدليل الأدوية المصري.
-مهامك:
-1. قراءة الروشتات الطبية وتحليل أسماء الأدوية المكتوبة، الجرعات، التخصص الطبي، واقتراح بدائل في السوق المصري.
-2. الإجابة عن الأمراض، الأعراض، والتداخلات الدوائية بدقة ومهنية باللغة العربية.`
-      },
-      {
-        role: "user",
-        content: userContent
-      }
-    ];
+    // حفظ سؤال المستخدم في سجل ذاكرة الجلسة
+    conversationHistory.push({
+      role: "user",
+      content: userContent
+    });
+
+    // الاحتفاظ بآخر 10 رسائل لضمان بقاء الذاكرة وسرعة الرد
+    if (conversationHistory.length > 11) {
+      conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-10)];
+    }
 
     try {
       const response = await fetch(endpoint, {
@@ -532,14 +539,23 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         body: JSON.stringify({
           model: 'google/gemini-3.8-flash',
-          max_tokens: 4000,
-          messages: messages
+          max_tokens: 5000,
+          messages: conversationHistory
         })
       });
 
       const data = await response.json();
       if (data.error) throw new Error(data.error.message);
-      return data.choices?.[0]?.message?.content || 'لم يتم استخراج رد من النموذج.';
+      
+      const assistantReply = data.choices?.[0]?.message?.content || 'لم يتم استخراج رد من النموذج.';
+      
+      // حفظ رد الذكاء الاصطناعي في الذاكرة ليتذكره في الأسئلة القادمة
+      conversationHistory.push({
+        role: "assistant",
+        content: assistantReply
+      });
+
+      return assistantReply;
     } catch (err) {
       console.warn('OpenRouter API error:', err);
       if (imageUrl) {
@@ -595,12 +611,13 @@ window.addEventListener('DOMContentLoaded', () => {
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    const prompt = `يرجى قراءة هذه الروشتة الطبية بالكامل من البداية حتى النهاية، مع الانتباه لخط الطبيب اليدوي:
+    const prompt = `يرجى قراءة هذه الروشتة الطبية بالكامل من البداية حتى آخر سطر، مع الانتباه لخط الطبيب اليدوي:
 1. التخصص الطبي وبيانات العيادة/الطبيب إن وجدت.
 2. التشخيص أو الشكوى إن كانت مدونة.
-3. استخراج *جميع* الأدوية المكتوبة سطراً بسطر (الاسم التجاري، المادة الفعالة المحتملة، التركيز، وطريقة الاستخدام/الجرعة المكتوبة).
+3. استخراج *جميع* الأدوية المكتوبة سطراً بسطر دون تفويت أي دواء (الاسم التجاري، المادة الفعالة المحتملة، التركيز، وطريقة الاستخدام/الجرعة المكتوبة).
 4. لكل دواء تم استخراجه: اقترح البدائل والبدائل المماثلة المتاحة في السوق المصري (من قاعدة Neo Drug).
-5. تنبيهات طبية هامة أو تعارضات بين الأدوية المكتوبة في هذه الروشتة.`;
+5. تنبيهات طبية هامة أو تعارضات بين الأدوية المكتوبة في هذه الروشتة.
+*ملاحظة هامة جداً: أكمل كل أقسام التقرير للنهاية ولا تقطع الإجابة في المنتصف مطلقاً.*`;
     const aiResponse = await callAIAPI(prompt, selectedImageBase64);
     loadingDiv.textContent = aiResponse;
     chatBox.scrollTop = chatBox.scrollHeight;
