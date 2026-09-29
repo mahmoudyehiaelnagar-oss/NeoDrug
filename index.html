@@ -343,6 +343,8 @@ body {
   <pre id="analysis-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
 <script>
 const NARA_KEY = "sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0";
+const NARA_URL = "https://router.bynara.id/v1/chat/completions";
+const PROXY   = "https://corsproxy.io/?url=";
 const resultBox = document.getElementById('analysis-result');
 
 document.getElementById('analysis-run').addEventListener('click', async () => {
@@ -358,7 +360,7 @@ document.getElementById('analysis-run').addEventListener('click', async () => {
       || 'اقرأ الروشتة الطبية بدقة، حدد التخصص الطبي للطبيب، استخرج أسماء الأدوية المكتوبة، واقترح بدائل متاحة في السوق المصري لكل دواء.';
 
     try {
-      const response = await fetch('https://router.bynara.id/v1/chat/completions', {
+      const response = await fetch(PROXY + encodeURIComponent(NARA_URL), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

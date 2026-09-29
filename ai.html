@@ -459,8 +459,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const endpoint = 'https://router.bynara.id/v1/chat/completions';
-    const apiKey = 'sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0';
+    const NARA_URL = 'https://router.bynara.id/v1/chat/completions';
+    const PROXY    = 'https://corsproxy.io/?url=';
+    const apiKey   = 'sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0';
     const modelName = 'space-bunny-alpha';
 
     let messages = [
@@ -490,7 +491,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(PROXY + encodeURIComponent(NARA_URL), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
