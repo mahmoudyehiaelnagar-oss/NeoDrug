@@ -459,9 +459,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const endpoint = 'http://localhost:20128/v1/chat/completions';
-    const apiKey = 'sk-9c72e3faf1beb0a3-3886ec-d1740f3d';
-    const modelName = imageUrl ? 'google/gemini-1.5-flash' : 'google/gemini-1.5-flash';
+    const endpoint = 'https://router.bynara.id/v1/chat/completions';
+    const apiKey = 'sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0';
+    const modelName = 'google/gemini-1.5-flash';
 
     let messages = [
       {
