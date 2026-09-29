@@ -341,58 +341,7 @@ body {
   <textarea id="analysis-question" placeholder="أدخل سؤالك، مثل: اقرأ الروشتة الطبية بدقة، حدد التخصص، استخرج أسماء الأدوية، واقترح بدائل في السوق المصري" style="width:100%;margin-top:0.6rem;"></textarea>
   <button id="analysis-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">تحليل الصورة</button>
   <pre id="analysis-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
-<script>
-const GEMINI_KEY = "AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig";
-const resultBox  = document.getElementById('analysis-result');
-const MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.8-flash'];
-
-async function callGemini(parts, modelIndex = 0) {
-  if (modelIndex >= MODELS.length) throw new Error('كل الموديلات مشغولة، حاول بعد قليل.');
-  const model = MODELS[modelIndex];
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
-  const res  = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts }] })
-  });
-  const data = await res.json();
-  if (data.error) {
-    const msg = data.error.message || '';
-    if (msg.includes('high demand') || msg.includes('overloaded') || msg.includes('no longer available') || res.status === 503) {
-      resultBox.textContent = `⏳ ${model} مشغول، يجرب الموديل التالي...`;
-      await new Promise(r => setTimeout(r, 3000));
-      return callGemini(parts, modelIndex + 1);
-    }
-    throw new Error(msg);
-  }
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'لم يتم الحصول على نتيجة.';
-}
-
-document.getElementById('analysis-run').addEventListener('click', async () => {
-  const fileInput = document.getElementById('analysis-file');
-  if (!fileInput.files[0]) { alert('اختر صورة أولاً'); return; }
-  resultBox.textContent = '⏳ جاري تحليل الصورة...';
-
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const imgData  = reader.result;
-    const base64   = imgData.split(',')[1];
-    const mimeType = imgData.split(';')[0].split(':')[1] || 'image/jpeg';
-    const question = document.getElementById('analysis-question').value.trim()
-      || 'اقرأ الروشتة الطبية بدقة، حدد التخصص الطبي للطبيب، استخرج أسماء الأدوية المكتوبة، واقترح بدائل متاحة في السوق المصري لكل دواء.';
-    try {
-      const result = await callGemini([
-        { text: question },
-        { inlineData: { mimeType, data: base64 } }
-      ]);
-      resultBox.textContent = result;
-    } catch (e) {
-      resultBox.textContent = 'خطأ: ' + e.message;
-    }
-  };
-  reader.readAsDataURL(fileInput.files[0]);
-});
-</script>
+<script src="analysis-image.js?v=10"></script>
 </div>
 
   
