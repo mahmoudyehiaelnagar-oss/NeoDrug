@@ -491,6 +491,9 @@ window.addEventListener('DOMContentLoaded', () => {
       return data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم الحصول على نتيجة.';
     } catch (err) {
       console.warn('Gemini API error:', err);
+      if (imageUrl) {
+        return '⚠️ خوادم Gemini مشغولة حالياً. اضغط "تحليل الروشتة" مرة أخرى بعد ثوانٍ قليلة.';
+      }
       return localClinicalFallback(promptText);
     }
   }
