@@ -458,7 +458,7 @@ window.addEventListener('DOMContentLoaded', () => {
     return `🩺 **استشارة إكلينيكية شاملة (Neo AI):**\nبناءً على سؤالك "${query}"، أنصحك بما يلي:\n1. إذا كنت تعاني من أعراض مرضية مستمرة (مثل الحمى، آلام الصدر، أو الإجهاد الشديد)، يرجى استشارة الطبيب المختص للتشخيص الدقيق.\n2. للأدوية والعلاجات، يمكنك البحث عنها مباشرة باسم الدواء في دليل الأدوية المصري (9,747 صنف).\n3. تأكد دائماً من قراءة النشرة الداخلية لكل دواء أو استشارة الصيدلي لمعرفة الجرعات الآمنة.`;
   }
 
-  const MODELS = ['gemini-3.8-flash', 'gemini-2.0-flash-exp', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+  const MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.8-flash'];
 
   async function callAIAPI(promptText, imageUrl = null, modelIndex = 0) {
     if (modelIndex >= MODELS.length) return localClinicalFallback(promptText);
@@ -483,7 +483,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (data.error) {
         const msg = data.error.message || '';
         if (msg.includes('high demand') || msg.includes('overloaded') || msg.includes('no longer available') || response.status === 503) {
-          await new Promise(r => setTimeout(r, 1500));
+          await new Promise(r => setTimeout(r, 3000));
           return callAIAPI(promptText, imageUrl, modelIndex + 1);
         }
         throw new Error(msg);

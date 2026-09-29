@@ -344,7 +344,7 @@ body {
 <script>
 const GEMINI_KEY = "AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig";
 const resultBox  = document.getElementById('analysis-result');
-const MODELS = ['gemini-3.8-flash', 'gemini-2.0-flash-exp', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+const MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.8-flash'];
 
 async function callGemini(parts, modelIndex = 0) {
   if (modelIndex >= MODELS.length) throw new Error('كل الموديلات مشغولة، حاول بعد قليل.');
@@ -360,7 +360,7 @@ async function callGemini(parts, modelIndex = 0) {
     const msg = data.error.message || '';
     if (msg.includes('high demand') || msg.includes('overloaded') || msg.includes('no longer available') || res.status === 503) {
       resultBox.textContent = `⏳ ${model} مشغول، يجرب الموديل التالي...`;
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 3000));
       return callGemini(parts, modelIndex + 1);
     }
     throw new Error(msg);
