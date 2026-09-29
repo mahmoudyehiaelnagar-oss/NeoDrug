@@ -39,7 +39,36 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
   });
 }
 
-async function callGemini(parts, attempt = 0) {
+async function callAI(parts, promptText, dataUrl, attempt = 0) {
+  // 1. تجربة OmniRoute المحلي أولاً
+  try {
+    const omniRes = await fetch('http://localhost:20128/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sk-9c72e3faf1beb0a3-bbcc48-40a6231b'
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-1.5-flash',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: promptText },
+            { type: 'image_url', image_url: { url: dataUrl } }
+          ]
+        }]
+      })
+    });
+    if (omniRes.ok) {
+      const data = await omniRes.json();
+      const txt = data?.choices?.[0]?.message?.content;
+      if (txt) return txt;
+    }
+  } catch (e) {
+    // OmniRoute not reachable
+  }
+
+  // 2. البديل المباشر
   if (attempt >= 3) throw new Error('الخادم مشغول حالياً، برجاء إعادة المحاولة بعد ثوانٍ.');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_KEY}`;
   
@@ -106,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
           resultBox.textContent = `⏳ الخادم يستجيب ببطء، جاري المحاولة السريعة (${attempt + 1}/3)...`;
           await new Promise(r => setTimeout(r, 2000));
         }
-        result = await callGemini(parts, attempt);
+        result = await callAI(parts, question, `data:${mimeType};base64,${base64}`, attempt);
         if (result !== null) break;
       }
 

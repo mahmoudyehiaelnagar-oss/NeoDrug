@@ -492,17 +492,58 @@ window.addEventListener('DOMContentLoaded', () => {
     return `🩺 **استشارة إكلينيكية شاملة (Neo AI):**\nبناءً على سؤالك "${query}"، أنصحك بما يلي:\n1. إذا كنت تعاني من أعراض مرضية مستمرة (مثل الحمى، آلام الصدر، أو الإجهاد الشديد)، يرجى استشارة الطبيب المختص للتشخيص الدقيق.\n2. للأدوية والعلاجات، يمكنك البحث عنها مباشرة باسم الدواء في دليل الأدوية المصري (9,747 صنف).\n3. تأكد دائماً من قراءة النشرة الداخلية لكل دواء أو استشارة الصيدلي لمعرفة الجرعات الآمنة.`;
   }
 
-  const MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.8-flash'];
-
-  async function callAIAPI(promptText, imageUrl = null, modelIndex = 0) {
-    if (modelIndex >= MODELS.length) return localClinicalFallback(promptText);
+  async function callAIAPI(promptText, imageUrl = null) {
+    const OMNI_URL = 'http://localhost:20128/v1/chat/completions';
+    const OMNI_KEY = 'sk-9c72e3faf1beb0a3-bbcc48-40a6231b';
     const GEMINI_KEY = 'AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig';
-    const model    = MODELS[modelIndex];
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
 
+    // 1. تجربة OmniRoute أولاً (إذا كان شغالاً محلياً)
+    try {
+      let omniMessages = [
+        {
+          role: "system",
+          content: "أنت مساعد صيدلاني وإكلينيكي خبير. اقرأ الروشتات الطبية بدقة واستخرج أسماء الأدوية وبدائلها في السوق المصري."
+        }
+      ];
+
+      if (imageUrl) {
+        omniMessages.push({
+          role: "user",
+          content: [
+            { type: "text", text: promptText },
+            { type: "image_url", image_url: { url: imageUrl } }
+          ]
+        });
+      } else {
+        omniMessages.push({ role: "user", content: promptText });
+      }
+
+      const omniRes = await fetch(OMNI_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OMNI_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-1.5-flash',
+          messages: omniMessages
+        })
+      });
+
+      if (omniRes.ok) {
+        const omniData = await omniRes.json();
+        const content = omniData?.choices?.[0]?.message?.content;
+        if (content) return content;
+      }
+    } catch (e) {
+      console.log('OmniRoute local not reachable, falling back to Gemini Direct...');
+    }
+
+    // 2. البديل المباشر: Gemini API
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_KEY}`;
     let parts = [{ text: promptText }];
     if (imageUrl) {
-      const base64   = imageUrl.split(',')[1];
+      const base64 = imageUrl.split(',')[1];
       const mimeType = imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
       parts.push({ inlineData: { mimeType, data: base64 } });
     }
@@ -514,19 +555,12 @@ window.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ contents: [{ parts }] })
       });
       const data = await response.json();
-      if (data.error) {
-        const msg = data.error.message || '';
-        if (msg.includes('high demand') || msg.includes('overloaded') || msg.includes('no longer available') || response.status === 503) {
-          await new Promise(r => setTimeout(r, 3000));
-          return callAIAPI(promptText, imageUrl, modelIndex + 1);
-        }
-        throw new Error(msg);
-      }
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم الحصول على نتيجة.';
+      if (data.error) throw new Error(data.error.message);
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم استخراج رد.';
     } catch (err) {
-      console.warn('Gemini API error:', err);
+      console.warn('AI error:', err);
       if (imageUrl) {
-        return '⚠️ خوادم Gemini مشغولة حالياً. اضغط "تحليل الروشتة" مرة أخرى بعد ثوانٍ قليلة.';
+        return '⚠️ تعذر الاتصال بـ OmniRoute (تأكد من تشغيل البرنامج محلياً) أو خوادم الذكاء الاصطناعي.';
       }
       return localClinicalFallback(promptText);
     }
