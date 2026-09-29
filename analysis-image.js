@@ -51,7 +51,7 @@ async function callAI(parts, promptText, dataUrl) {
     },
     body: JSON.stringify({
       model: 'google/gemini-3.5-flash-lite',
-      max_tokens: 2400,
+      max_tokens: 1800,
       messages: [{
         role: 'user',
         content: [
