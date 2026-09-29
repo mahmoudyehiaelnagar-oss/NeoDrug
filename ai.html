@@ -461,7 +461,7 @@ window.addEventListener('DOMContentLoaded', () => {
   async function callAIAPI(promptText, imageUrl = null) {
     const endpoint = 'https://router.bynara.id/v1/chat/completions';
     const apiKey = 'sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0';
-    const modelName = 'google/gemini-1.5-flash';
+    const modelName = 'space-bunny-alpha';
 
     let messages = [
       {
@@ -494,7 +494,8 @@ window.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${apiKey}`,
+          'X-Api-Key': apiKey
         },
         body: JSON.stringify({
           model: modelName,
