@@ -47,9 +47,7 @@ async function callAI(parts, promptText, dataUrl) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENROUTER_KEY}`,
-      'HTTP-Referer': 'https://mahmoudyehiaelnagar-oss.github.io/NeoDrug/',
-      'X-Title': 'NeoDrug'
+      'Authorization': `Bearer ${OPENROUTER_KEY}`
     },
     body: JSON.stringify({
       model: 'google/gemini-3.8-flash',
