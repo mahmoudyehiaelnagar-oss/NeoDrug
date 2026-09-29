@@ -539,7 +539,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         body: JSON.stringify({
           model: 'google/gemini-3.8-flash',
-          max_tokens: 5000,
+          max_tokens: 3200,
           messages: conversationHistory
         })
       });
@@ -547,21 +547,49 @@ window.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
       if (data.error) throw new Error(data.error.message);
       
-      const assistantReply = data.choices?.[0]?.message?.content || 'لم يتم استخراج رد من النموذج.';
-      
+      const choice = data.choices?.[0];
+      const assistantReply = choice?.message?.content || 'لم يتم استخراج رد من النموذج.';
+      const isTruncated = choice?.finish_reason === 'length';
+
       // حفظ رد الذكاء الاصطناعي في الذاكرة ليتذكره في الأسئلة القادمة
       conversationHistory.push({
         role: "assistant",
         content: assistantReply
       });
 
-      return assistantReply;
+      return { text: assistantReply, isTruncated };
     } catch (err) {
       console.warn('OpenRouter API error:', err);
       if (imageUrl) {
-        return '⚠️ تعذر تحليل الروشتة حالياً، يرجى المحاولة بعد لحظات: ' + err.message;
+        return { text: '⚠️ تعذر تحليل الروشتة حالياً، يرجى المحاولة بعد لحظات: ' + err.message, isTruncated: false };
       }
-      return localClinicalFallback(promptText);
+      return { text: localClinicalFallback(promptText), isTruncated: false };
+    }
+  }
+
+  function renderResponseWithContinuation(containerDiv, resObj) {
+    containerDiv.textContent = resObj.text;
+
+    if (resObj.isTruncated) {
+      const btn = document.createElement('button');
+      btn.style.cssText = 'display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:6px 14px; background:var(--accent); color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; font-family:inherit;';
+      btn.innerHTML = '<span>➕ أكمل باقي التقرير / الأدوية</span>';
+
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ جاري استكمال باقي الروشتة...</span>';
+
+        const continuation = await callAIAPI("أكمل باقي قراءة الروشتة والبدائل والجرعات من مكان توقفك تماماً دون تكرار ما سبق.");
+        btn.remove();
+
+        const extraDiv = document.createElement('div');
+        extraDiv.style.cssText = 'margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);';
+        containerDiv.appendChild(extraDiv);
+        renderResponseWithContinuation(extraDiv, continuation);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+
+      containerDiv.appendChild(btn);
     }
   }
 
@@ -578,16 +606,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'msg ai';
-    loadingDiv.textContent = 'جاري التفكير وتحليل الأعراض وتقديم التوصية الطبية... ⏳';
+    loadingDiv.textContent = 'جاري التفكير وتحليل الأعراض ومراجعة سياق المحادثة... ⏳';
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    try {
-      const aiResponse = await callAIAPI(text, null);
-      loadingDiv.textContent = aiResponse;
-    } catch (err) {
-      loadingDiv.textContent = localClinicalFallback(text);
-    }
+    const aiResponse = await callAIAPI(text, null);
+    renderResponseWithContinuation(loadingDiv, aiResponse);
     chatBox.scrollTop = chatBox.scrollHeight;
   };
 
@@ -611,15 +635,12 @@ window.addEventListener('DOMContentLoaded', () => {
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    const prompt = `يرجى قراءة هذه الروشتة الطبية بالكامل من البداية حتى آخر سطر، مع الانتباه لخط الطبيب اليدوي:
-1. التخصص الطبي وبيانات العيادة/الطبيب إن وجدت.
-2. التشخيص أو الشكوى إن كانت مدونة.
-3. استخراج *جميع* الأدوية المكتوبة سطراً بسطر دون تفويت أي دواء (الاسم التجاري، المادة الفعالة المحتملة، التركيز، وطريقة الاستخدام/الجرعة المكتوبة).
-4. لكل دواء تم استخراجه: اقترح البدائل والبدائل المماثلة المتاحة في السوق المصري (من قاعدة Neo Drug).
-5. تنبيهات طبية هامة أو تعارضات بين الأدوية المكتوبة في هذه الروشتة.
-*ملاحظة هامة جداً: أكمل كل أقسام التقرير للنهاية ولا تقطع الإجابة في المنتصف مطلقاً.*`;
+    const prompt = `يرجى قراءة هذه الروشتة الطبية بالكامل وبإيجاز شديد ودقيق:
+1. التخصص والتشخيص المكتوب.
+2. قائمة بجميع الأدوية سطراً بسطر: الاسم، التركيز، الجرعة، وبدائل كل دواء في السوق المصري.
+3. تنبيهات هامة للمريضة.`;
     const aiResponse = await callAIAPI(prompt, selectedImageBase64);
-    loadingDiv.textContent = aiResponse;
+    renderResponseWithContinuation(loadingDiv, aiResponse);
     chatBox.scrollTop = chatBox.scrollHeight;
   });
 });
