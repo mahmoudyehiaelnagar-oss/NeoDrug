@@ -50,8 +50,8 @@ async function callAI(parts, promptText, dataUrl) {
       'Authorization': `Bearer ${OPENROUTER_KEY}`
     },
     body: JSON.stringify({
-      model: 'google/gemini-3.8-flash',
-      max_tokens: 4000,
+      model: 'google/gemini-3.5-flash-lite',
+      max_tokens: 2400,
       messages: [{
         role: 'user',
         content: [
