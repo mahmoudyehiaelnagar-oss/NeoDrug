@@ -2,7 +2,7 @@
 const GEMINI_KEY = "AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig";
 
 // ضغط وتصغير الصورة تلقائياً لسرعة الرفع والاستجابة الفورية
-function compressImage(file, maxDimension = 1024, quality = 0.8) {
+function compressImage(file, maxDimension = 2048, quality = 0.92) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -51,7 +51,7 @@ async function callAI(parts, promptText, dataUrl) {
     },
     body: JSON.stringify({
       model: 'google/gemini-3.8-flash',
-      max_tokens: 2048,
+      max_tokens: 4000,
       messages: [{
         role: 'user',
         content: [

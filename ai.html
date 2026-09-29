@@ -383,7 +383,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (file) handleImageFile(file);
   });
 
-  function compressImage(file, maxDimension = 1024, quality = 0.8) {
+  function compressImage(file, maxDimension = 2048, quality = 0.92) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
@@ -532,7 +532,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         body: JSON.stringify({
           model: 'google/gemini-3.8-flash',
-          max_tokens: 2048,
+          max_tokens: 4000,
           messages: messages
         })
       });
@@ -595,7 +595,12 @@ window.addEventListener('DOMContentLoaded', () => {
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    const prompt = "اقرأ هذه الروشتة الطبية بدقة، حدد التخصص الطبي للطبيب، استخرج أسماء الأدوية المكتوبة، واقترح البدائل المتاحة في السوق المصري لكل دواء.";
+    const prompt = `يرجى قراءة هذه الروشتة الطبية بالكامل من البداية حتى النهاية، مع الانتباه لخط الطبيب اليدوي:
+1. التخصص الطبي وبيانات العيادة/الطبيب إن وجدت.
+2. التشخيص أو الشكوى إن كانت مدونة.
+3. استخراج *جميع* الأدوية المكتوبة سطراً بسطر (الاسم التجاري، المادة الفعالة المحتملة، التركيز، وطريقة الاستخدام/الجرعة المكتوبة).
+4. لكل دواء تم استخراجه: اقترح البدائل والبدائل المماثلة المتاحة في السوق المصري (من قاعدة Neo Drug).
+5. تنبيهات طبية هامة أو تعارضات بين الأدوية المكتوبة في هذه الروشتة.`;
     const aiResponse = await callAIAPI(prompt, selectedImageBase64);
     loadingDiv.textContent = aiResponse;
     chatBox.scrollTop = chatBox.scrollHeight;
