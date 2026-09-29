@@ -459,58 +459,28 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const NARA_URL = 'https://router.bynara.id/v1/chat/completions';
-    const PROXY    = 'https://corsproxy.io/?url=';
-    const apiKey   = 'sk-nry-0tSpNqmb513MgUnsFjGkvDVClM69Go1oHsBm_sF0BN0';
-    const modelName = 'space-bunny-alpha';
+    const GEMINI_KEY = 'AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig';
+    const endpoint   = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
-    let messages = [
-      {
-        role: "system",
-        content: `أنت مساعد صيدلاني وإكلينيكي خبير ومدعوم بأفضل النماذج الطبية العالمية.
-مهامك الأساسية:
-1. تحليل الأعراض والأمراض بدقة طبية عالية باللغة العربية.
-2. تقديم توصيات فورية بناءً على شدة الحالة:
-   - حالات طارئة: وجه المستخدم للمستشفى أو الطوارئ فوراً (مثل ألم الصدر الحاد، ضيق التنفس، فقدان الوعي).
-   - حالات متوسطة: اقترح الراحة أو مراجعة طبيب متخصص.
-   - حالات بسيطة: اقترح أدوية مناسبة من السوق المصري (Neo Drug - 9,747 صنف) مع ذكر الجرعات والبدائل.
-3. كن مباشراً، سريعاً، ومهنياً في إجاباتك.`
-      }
-    ];
-
+    let parts = [{ text: promptText }];
     if (imageUrl) {
-      messages.push({
-        role: "user",
-        content: [
-          { type: "text", text: promptText },
-          { type: "image_url", image_url: { url: imageUrl } }
-        ]
-      });
-    } else {
-      messages.push({ role: "user", content: promptText });
+      const base64   = imageUrl.split(',')[1];
+      const mimeType = imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+      parts.push({ inlineData: { mimeType, data: base64 } });
     }
 
     try {
-      const response = await fetch(PROXY + encodeURIComponent(NARA_URL), {
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: messages
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts }] })
       });
 
-      if (!response.ok) throw new Error('API response not ok: ' + response.status);
       const data = await response.json();
-      if (data && data.choices && data.choices[0] && data.choices[0].message) {
-        return data.choices[0].message.content;
-      }
-      throw new Error('Invalid response structure');
+      if (data.error) throw new Error(data.error.message);
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم الحصول على نتيجة.';
     } catch (err) {
-      console.warn('AI API call failed:', err);
+      console.warn('Gemini API error:', err);
       return localClinicalFallback(promptText);
     }
   }
