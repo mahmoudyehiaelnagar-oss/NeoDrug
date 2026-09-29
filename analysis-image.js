@@ -39,65 +39,34 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
   });
 }
 
-async function callAI(parts, promptText, dataUrl, attempt = 0) {
-  // 1. تجربة OmniRoute المحلي أولاً
-  try {
-    const omniRes = await fetch('http://localhost:20128/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-9c72e3faf1beb0a3-bbcc48-40a6231b'
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-1.5-flash',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: promptText },
-            { type: 'image_url', image_url: { url: dataUrl } }
-          ]
-        }]
-      })
-    });
-    if (omniRes.ok) {
-      const data = await omniRes.json();
-      const txt = data?.choices?.[0]?.message?.content;
-      if (txt) return txt;
-    }
-  } catch (e) {
-    // OmniRoute not reachable
-  }
+async function callAI(parts, promptText, dataUrl) {
+  const OPENROUTER_KEY = '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';
+  const url = 'https://openrouter.ai/api/v1/chat/completions';
 
-  // 2. البديل المباشر
-  if (attempt >= 3) throw new Error('الخادم مشغول حالياً، برجاء إعادة المحاولة بعد ثوانٍ.');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_KEY}`;
-  
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 35000);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENROUTER_KEY}`,
+      'HTTP-Referer': 'https://mahmoudyehiaelnagar-oss.github.io/NeoDrug/',
+      'X-Title': 'NeoDrug'
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-3.8-flash',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: promptText },
+          { type: 'image_url', image_url: { url: dataUrl } }
+        ]
+      }]
+    })
+  });
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts }] }),
-      signal: ctrl.signal
-    });
-    clearTimeout(timer);
-
-    const data = await res.json();
-    if (data.error) {
-      const msg = data.error.message || '';
-      if (msg.includes('high demand') || msg.includes('overloaded') || res.status === 503 || res.status === 429) {
-        return null;
-      }
-      throw new Error(msg);
-    }
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'لم يتم استخراج معلومات من الروشتة.';
-  } catch (e) {
-    clearTimeout(timer);
-    if (e.name === 'AbortError') return null;
-    throw e;
-  }
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content?.trim() || 'لم يتم استخراج معلومات من الروشتة.';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -129,15 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       resultBox.textContent = '🚀 جاري إرسال الصورة لـ Gemini 3.8 Flash وقراءة الروشتة...';
 
-      let result = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) {
-          resultBox.textContent = `⏳ الخادم يستجيب ببطء، جاري المحاولة السريعة (${attempt + 1}/3)...`;
-          await new Promise(r => setTimeout(r, 2000));
-        }
-        result = await callAI(parts, question, `data:${mimeType};base64,${base64}`, attempt);
-        if (result !== null) break;
-      }
+      const result = await callAI(parts, question, `data:${mimeType};base64,${base64}`);
 
       if (result === null) {
         resultBox.textContent = '⚠️ استغرق الطلب وقتاً أطول من المتوقع، اضغط على زر "تحليل الصورة" للمحاولة مجدداً.';

@@ -493,74 +493,56 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const OMNI_URL = 'http://localhost:20128/v1/chat/completions';
-    const OMNI_KEY = 'sk-9c72e3faf1beb0a3-bbcc48-40a6231b';
-    const GEMINI_KEY = 'AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig';
+    const OPENROUTER_KEY = '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';
+    const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
-    // 1. تجربة OmniRoute أولاً (إذا كان شغالاً محلياً)
-    try {
-      let omniMessages = [
-        {
-          role: "system",
-          content: "أنت مساعد صيدلاني وإكلينيكي خبير. اقرأ الروشتات الطبية بدقة واستخرج أسماء الأدوية وبدائلها في السوق المصري."
-        }
-      ];
-
-      if (imageUrl) {
-        omniMessages.push({
-          role: "user",
-          content: [
-            { type: "text", text: promptText },
-            { type: "image_url", image_url: { url: imageUrl } }
-          ]
-        });
-      } else {
-        omniMessages.push({ role: "user", content: promptText });
-      }
-
-      const omniRes = await fetch(OMNI_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OMNI_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-1.5-flash',
-          messages: omniMessages
-        })
-      });
-
-      if (omniRes.ok) {
-        const omniData = await omniRes.json();
-        const content = omniData?.choices?.[0]?.message?.content;
-        if (content) return content;
-      }
-    } catch (e) {
-      console.log('OmniRoute local not reachable, falling back to Gemini Direct...');
-    }
-
-    // 2. البديل المباشر: Gemini API
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_KEY}`;
-    let parts = [{ text: promptText }];
+    let userContent;
     if (imageUrl) {
-      const base64 = imageUrl.split(',')[1];
-      const mimeType = imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
-      parts.push({ inlineData: { mimeType, data: base64 } });
+      userContent = [
+        { type: "text", text: promptText },
+        { type: "image_url", image_url: { url: imageUrl } }
+      ];
+    } else {
+      userContent = promptText;
     }
+
+    const messages = [
+      {
+        role: "system",
+        content: `أنت مساعد صيدلاني وإكلينيكي خبير (Neo AI) متصل بدليل الأدوية المصري.
+مهامك:
+1. قراءة الروشتات الطبية وتحليل أسماء الأدوية المكتوبة، الجرعات، التخصص الطبي، واقتراح بدائل في السوق المصري.
+2. الإجابة عن الأمراض، الأعراض، والتداخلات الدوائية بدقة ومهنية باللغة العربية.`
+      },
+      {
+        role: "user",
+        content: userContent
+      }
+    ];
 
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }] })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_KEY}`,
+          'HTTP-Referer': 'https://mahmoudyehiaelnagar-oss.github.io/NeoDrug/',
+          'X-Title': 'NeoDrug Medical Assistant'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3.8-flash',
+          max_tokens: 2048,
+          messages: messages
+        })
       });
+
       const data = await response.json();
       if (data.error) throw new Error(data.error.message);
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم استخراج رد.';
+      return data.choices?.[0]?.message?.content || 'لم يتم استخراج رد من النموذج.';
     } catch (err) {
-      console.warn('AI error:', err);
+      console.warn('OpenRouter API error:', err);
       if (imageUrl) {
-        return '⚠️ تعذر الاتصال بـ OmniRoute (تأكد من تشغيل البرنامج محلياً) أو خوادم الذكاء الاصطناعي.';
+        return '⚠️ تعذر تحليل الروشتة حالياً، يرجى المحاولة بعد لحظات: ' + err.message;
       }
       return localClinicalFallback(promptText);
     }
