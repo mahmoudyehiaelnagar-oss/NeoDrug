@@ -117,6 +117,19 @@ def main():
     log(f"• رابط الخادم المحلي: {app_url}")
 
     # --------------------------------------------------------------
+    # 1.5 Start FastAPI Backend Process
+    # --------------------------------------------------------------
+    import subprocess
+    import sys
+
+    log("• Starting FastAPI Backend on port 8000...")
+    backend_thread = threading.Thread(
+        target=lambda: subprocess.run([sys.executable, "-m", "uvicorn", "backend.app.main:app", "--port", "8000"]),
+        daemon=True
+    )
+    backend_thread.start()
+
+    # --------------------------------------------------------------
     # 2️⃣  GTK + WebKit (استخدام WebKit2 4.1 مع دعم احتياطي لـ 6.0)
     # --------------------------------------------------------------
     import gi

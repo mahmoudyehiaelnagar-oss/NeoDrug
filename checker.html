@@ -349,7 +349,7 @@ body {
   </nav>
 </div>
 
-<script src="drugs_data.js" defer></script>
+<script src="js/api.js"></script>
 <script>
 let currentDrugs = [];
 
@@ -412,51 +412,33 @@ function removeDrug(idx) {
   updateDrugTags();
 }
 
-function runInteractionCheck(drugs) {
+async function runInteractionCheck(drugs) {
   const resultsArea = document.getElementById('resultsArea');
-  resultsArea.innerHTML = '<div style="color:var(--accent-strong);font-weight:600">جاري تحليل المواد الفعالة والتعارضات الطبية...</div>';
+  resultsArea.innerHTML = '<div style="color:var(--accent-strong);font-weight:600">جاري تحليل المواد الفعالة والتعارضات الطبية عبر الخادم...</div>';
 
-  setTimeout(() => {
-    let html = \`<div style="font-size:13.5px;margin-bottom:12px;font-weight:700">تم فحص \${drugs.length} أدوية بنجاح:</div>\`;
-    const searchString = drugs.join(' ').toLowerCase();
+  const res = await window.api.checkInteractions(drugs);
+  const alerts = res.alerts || [];
 
-    // Minimal interaction rules
-    const hasNsaid = /ibuprofen|diclofenac|ketoprofen|piroxicam|naproxen|brufen|cataflam|voltaren/i.test(searchString);
-    const hasAspirin = /aspirin|acetylsalicylic|asposid|jusprin/i.test(searchString);
-    const hasWarfarin = /warfarin|marevan/i.test(searchString);
-    const hasNitrates = /nitrate|nitroglycerin|monomak|nitro/i.test(searchString);
-    const hasSildenafil = /sildenafil|viagra|tadalafil|cialis/i.test(searchString);
+  let html = \`<div style="font-size:13.5px;margin-bottom:12px;font-weight:700">تم فحص \${drugs.length} أدوية بنجاح:</div>\`;
 
-    let alerts = [];
-    if (hasNsaid && hasAspirin) {
-      alerts.push("⚠️ <strong>تعارض شديد (NSAID + Aspirin):</strong> زيادة خطر النزيف المعدي المعوي وتقرحات المعدة.");
-    }
-    if ((hasNsaid || hasAspirin) && hasWarfarin) {
-      alerts.push("⚠️ <strong>تعارض خطير (مضادات التخثر + مسكنات):</strong> خطورة عالية لحدوث نزيف. يجب تجنب الاستخدام المشترك.");
-    }
-    if (hasNitrates && hasSildenafil) {
-      alerts.push("⚠️ <strong>تعارض مميت (Nitrates + PDE5 inhibitors):</strong> هبوط حاد وشديد في ضغط الدم قد يهدد الحياة.");
-    }
-
-    if (alerts.length > 0) {
-      alerts.forEach(alert => {
-        html += \`
-          <div class="alert-box" style="margin-bottom: 8px;">
-            \${alert}
-          </div>
-        \`;
-      });
-      html += \`<div style="font-size: 11px; color: var(--muted); margin-top: 8px;">ملاحظة: هذا التحليل استرشادي ولا يغني عن استشارة الطبيب.</div>\`;
-    } else {
+  if (alerts.length > 0) {
+    alerts.forEach(alert => {
       html += \`
-        <div class="safe-box">
-          <strong>✅ لم يتم رصد تفاعلات خطيرة:</strong><br>
-          لا توجد تعارضات مسجلة بين الأدوية المدخلة في قاعدة البيانات الأساسية. يُرجى مراجعة الصيدلي للتأكد (النسخة الحالية لا تغطي جميع التعارضات الممكنة).
+        <div class="alert-box" style="margin-bottom: 8px;">
+          \${alert}
         </div>
       \`;
-    }
-    resultsArea.innerHTML = html;
-  }, 400);
+    });
+    html += \`<div style="font-size: 11px; color: var(--muted); margin-top: 8px;">ملاحظة: هذا التحليل استرشادي ولا يغني عن استشارة الطبيب.</div>\`;
+  } else {
+    html += \`
+      <div class="safe-box">
+        <strong>✅ لم يتم رصد تفاعلات خطيرة:</strong><br>
+        لا توجد تعارضات مسجلة بين الأدوية المدخلة في قاعدة البيانات. يُرجى مراجعة الصيدلي للتأكد.
+      </div>
+    \`;
+  }
+  resultsArea.innerHTML = html;
 }
 
 function escapeHtml(str) {

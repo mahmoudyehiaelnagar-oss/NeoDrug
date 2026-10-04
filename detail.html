@@ -286,21 +286,16 @@ body {
   </nav>
 </div>
 
-<script src="drugs_data.js" defer></script>
+<!-- Load Optimization Scripts -->
+<script src="js/api.js"></script>
 <script>
 window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const drugName = urlParams.get('name');
-
-  const checkDataInterval = setInterval(() => {
-    if (typeof EGYDOSE_DATABASE !== 'undefined' && EGYDOSE_DATABASE.length > 0) {
-      clearInterval(checkDataInterval);
-      loadDrugDetail(drugName);
-    }
-  }, 100);
+  loadDrugDetail(drugName);
 });
 
-function loadDrugDetail(name) {
+async function loadDrugDetail(name) {
   const container = document.getElementById('drugContent');
   if (!name) {
     container.innerHTML = '<div class="card"><h3>لم يتم تحديد دواء</h3><p style="color:var(--muted);margin-top:8px">الرجاء اختيار دواء من <a href="drugs.html">دليل الأدوية</a>.</p></div>';
@@ -308,7 +303,7 @@ function loadDrugDetail(name) {
   }
 
   const decodedName = decodeURIComponent(name);
-  const drug = EGYDOSE_DATABASE.find(d => d.tradeEn && d.tradeEn.toLowerCase() === decodedName.toLowerCase());
+  const drug = await window.api.getDrugDetail(decodedName);
 
   if (!drug) {
     container.innerHTML = `
