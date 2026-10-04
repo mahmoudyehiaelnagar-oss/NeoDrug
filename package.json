@@ -1,7 +1,0 @@
-{
-  "name": "neo-drug",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "mkdir -p public && cp -r *.html *.css *.png *.js js public/ || true"
-  }
-}
