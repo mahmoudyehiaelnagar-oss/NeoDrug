@@ -21,7 +21,12 @@ window.api = {
 
   async getDrugDetail(tradeName) {
     try {
-      const res = await fetch(`${API_BASE}/drugs/${encodeURIComponent(tradeName)}`);
+      const apiKey = localStorage.getItem('GEMINI_API_KEY') || "";
+      const headers = {};
+      if (apiKey) {
+        headers["x-gemini-key"] = apiKey;
+      }
+      const res = await fetch(`${API_BASE}/drugs/${encodeURIComponent(tradeName)}`, { headers });
       if (!res.ok) throw new Error("Drug not found");
       return await res.json();
     } catch (e) {

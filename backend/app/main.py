@@ -2,7 +2,7 @@ import re
 import math
 import traceback
 import urllib.parse
-from fastapi import FastAPI, Depends, Query, HTTPException
+from fastapi import FastAPI, Depends, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 import os
@@ -69,7 +69,7 @@ def get_drugs(
     }
 
 @app.get("/api/drugs/{trade_en}", response_model=schemas.DrugResponse)
-def get_drug_details(trade_en: str, db: Session = Depends(get_db)):
+def get_drug_details(trade_en: str, request: Request, db: Session = Depends(get_db)):
     # Make sure string is fully decoded since it comes from an HTTP URL Parameter
     decoded_trade = urllib.parse.unquote(trade_en)
     # Check directly using strict equivalence and case insensitive like matching
@@ -82,6 +82,38 @@ def get_drug_details(trade_en: str, db: Session = Depends(get_db)):
 
     if not drug:
         raise HTTPException(status_code=404, detail="Drug not found")
+    # On-demand AI Fetcher if data is missing and GEMINI_API_KEY is available
+    if not drug.indications and drug.generic_en:
+        api_key = request.headers.get("x-gemini-key") or os.getenv("GEMINI_API_KEY")
+        if api_key:
+            try:
+                import google.generativeai as genai
+                import json
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"""
+                أنت صيدلي خبير. قدم بيانات علمية دقيقة للمادة الفعالة: {drug.generic_en}
+                يجب أن يكون الرد عبارة عن كود JSON فقط بدون أي مقدمات أو علامات تنسيق ولا markdown، ويحتوي على المفاتيح التالية باللغة العربية:
+                {{
+                  "indications": "دواعي الاستعمال في سطرين",
+                  "dosage": "الجرعة المعتادة للبالغين",
+                  "side_effects": "أهم 3 أعراض جانبية",
+                  "contraindications": "موانع الاستعمال الرئيسية",
+                  "pregnancy": "فئة الأمان للحمل والرضاعة"
+                }}
+                """
+                resp = model.generate_content(prompt)
+                text = resp.text.replace('```json', '').replace('```', '').strip()
+                data = json.loads(text)
+                drug.indications = data.get('indications')
+                drug.dosage = data.get('dosage')
+                drug.side_effects = data.get('side_effects')
+                drug.contraindications = data.get('contraindications')
+                drug.pregnancy = data.get('pregnancy')
+                db.commit()
+            except Exception as e:
+                print("On-demand AI error:", e)
+
     return drug
 
 @app.post("/api/check_interaction")
