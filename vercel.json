@@ -7,7 +7,7 @@
   ],
   "functions": {
     "api/index.py": {
-      "includeFiles": ["drugs_database.db", "public/**"]
+      "includeFiles": "public/**"
     }
   }
 }

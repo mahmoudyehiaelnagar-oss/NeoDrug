@@ -109,7 +109,11 @@ def serve_index():
 
 @app.get("/{file_path:path}")
 def serve_static(file_path: str):
-    full_path = os.path.join(PUBLIC_DIR, file_path)
+    # Security check to prevent directory traversal
+    full_path = os.path.abspath(os.path.join(PUBLIC_DIR, file_path))
+    if not full_path.startswith(os.path.abspath(PUBLIC_DIR)):
+        return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+
     if os.path.isfile(full_path):
         return FileResponse(full_path)
     # Return index.html for unknown routes to support SPA/navigation

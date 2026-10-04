@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # We default to sqlite for local dev, but you can pass a POSTGRES URL in .env
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./drugs_database.db")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./public/drugs_database.db")
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
