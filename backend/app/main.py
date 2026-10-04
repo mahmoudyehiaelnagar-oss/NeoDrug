@@ -2,6 +2,9 @@ import re
 import math
 from fastapi import FastAPI, Depends, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -85,3 +88,16 @@ def check_interaction(req: schemas.InteractionRequest):
         alerts.append("⚠️ **تعارض مميت (Nitrates + PDE5 inhibitors):** هبوط حاد وشديد في ضغط الدم قد يهدد الحياة.")
 
     return {"alerts": alerts}
+
+
+# ----------------- Serve Frontend Static Files -----------------
+# Setup path to the root directory where HTML/JS files are located
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+
+@app.get("/")
+async def read_index():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+# Mount the static files at the root
+# Note: This MUST be the last route added so it doesn't override /api/ routes
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
