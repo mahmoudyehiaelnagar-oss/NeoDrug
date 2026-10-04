@@ -1,31 +1,40 @@
 import sqlite3
 import os
 import json
+import urllib.request
 import time
-
-try:
-    import google.generativeai as genai
-except ImportError:
-    print("Please install google-generativeai: pip install google-generativeai")
-    exit(1)
 
 def run():
     print("=" * 50)
-    print("🤖 Neo Drug - AI Data Filler 🤖")
+    print("🤖 Neo Drug - AI Data Filler (Naga/Gemini) 🤖")
     print("=" * 50)
     print("هذا السكربت سيقوم بالبحث عن الأدوية التي لا تمتلك (دواعي استعمال، جرعة، الخ)")
-    print("وسيقوم بإنشائها تلقائياً باستخدام الذكاء الاصطناعي (Gemini) لكل مادة فعالة.")
+    print("وسيقوم بإنشائها تلقائياً باستخدام الذكاء الاصطناعي لكل مادة فعالة.")
 
-    api_key = input("\nأدخل مفتاح Gemini API الخاص بك (أو اضغط Enter للبحث في .env): ").strip()
+    api_key = input("\nأدخل مفتاح API الخاص بك (Naga/OpenAI أو Gemini) أو اضغط Enter للبحث في .env: ").strip()
     if not api_key:
-        api_key = os.getenv("GEMINI_API_KEY")
+        api_key = os.getenv("API_KEY") or os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        print("❌ لم يتم إدخال مفتاح API ! يرجى الحصول عليه من Google AI Studio.")
+        print("❌ لم يتم إدخال مفتاح API !")
         return
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    is_openai_compat = api_key.startswith("sk-")
+
+    if is_openai_compat:
+        print("\n✅ تم اكتشاف مفتاح متوافق مع OpenAI/Naga Router.")
+        model_name = "gemini-1.5-flash"
+        api_base = "https://api.naga.ac/v1/chat/completions"
+    else:
+        print("\n✅ تم اكتشاف مفتاح جوجل Gemini الأصلي.")
+        model_name = "models/gemini-1.5-flash"
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name)
+        except ImportError:
+            print("Please install google-generativeai: pip install google-generativeai")
+            exit(1)
 
     # connect to db
     db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "drugs_database.db")
@@ -50,7 +59,7 @@ def run():
 
     filled_count = 0
     for gen in generics:
-        print(f"\n⏳ جاري البحث عن: {gen}...")
+        print(f"\n⏳ جاري البحث عن للمادة الفعالة: {gen}...")
         prompt = f"""
         أنت صيدلي خبير. قدم معلومات طبية علمية للمادة الفعالة: {gen}
         يجب أن يكون الرد عبارة عن كود JSON فقط بدون أي علامات تنسيق (بدون markdown) وبدون مقدمات ، ويحتوي على هذه المفاتيح باللغة العربية:
@@ -63,8 +72,23 @@ def run():
         }}
         """
         try:
-            resp = model.generate_content(prompt)
-            text = resp.text.replace('```json', '').replace('```', '').strip()
+            if is_openai_compat:
+                payload = json.dumps({
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}]
+                }).encode('utf-8')
+                req = urllib.request.Request(api_base, data=payload, headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                })
+                with urllib.request.urlopen(req) as response:
+                    result = json.loads(response.read().decode('utf-8'))
+                    text = result['choices'][0]['message']['content']
+            else:
+                resp = model.generate_content(prompt)
+                text = resp.text
+
+            text = text.replace('```json', '').replace('```', '').strip()
             data = json.loads(text)
 
             cursor.execute('''
@@ -86,9 +110,12 @@ def run():
             conn.commit()
             filled_count += 1
             print(f"✅ تم تحديث جميع الأدوية التي تحتوي على {gen}")
-            time.sleep(2) # rate limit
+            time.sleep(1) # rate limit
         except Exception as e:
             print(f"❌ خطأ أثناء معالجة {gen}: {e}")
+            if is_openai_compat and "429" in str(e):
+               print("Rate limit reached, pausing...")
+               time.sleep(5)
 
     print(f"\n🎉 انتهت العملية! تم تعبئة البيانات لـ {filled_count} مادة فعالة.")
     conn.close()

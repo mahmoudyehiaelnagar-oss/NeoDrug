@@ -84,13 +84,13 @@ def get_drug_details(trade_en: str, request: Request, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail="Drug not found")
     # On-demand AI Fetcher if data is missing and GEMINI_API_KEY is available
     if not drug.indications and drug.generic_en:
-        api_key = request.headers.get("x-gemini-key") or os.getenv("GEMINI_API_KEY")
+        api_key = request.headers.get("x-gemini-key") or os.getenv("GEMINI_API_KEY") or os.getenv("API_KEY")
         if api_key:
             try:
-                import google.generativeai as genai
                 import json
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                import urllib.request
+
+                is_openai_compat = api_key.startswith("sk-")
                 prompt = f"""
                 أنت صيدلي خبير. قدم بيانات علمية دقيقة للمادة الفعالة: {drug.generic_en}
                 يجب أن يكون الرد عبارة عن كود JSON فقط بدون أي مقدمات أو علامات تنسيق ولا markdown، ويحتوي على المفاتيح التالية باللغة العربية:
@@ -102,8 +102,28 @@ def get_drug_details(trade_en: str, request: Request, db: Session = Depends(get_
                   "pregnancy": "فئة الأمان للحمل والرضاعة"
                 }}
                 """
-                resp = model.generate_content(prompt)
-                text = resp.text.replace('```json', '').replace('```', '').strip()
+
+                if is_openai_compat:
+                    url = "https://api.naga.ac/v1/chat/completions"
+                    payload = json.dumps({
+                        "model": "gemini-1.5-flash",
+                        "messages": [{"role": "user", "content": prompt}]
+                    }).encode('utf-8')
+                    req = urllib.request.Request(url, data=payload, headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    })
+                    with urllib.request.urlopen(req) as response:
+                        result = json.loads(response.read().decode('utf-8'))
+                        text = result['choices'][0]['message']['content']
+                else:
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    resp = model.generate_content(prompt)
+                    text = resp.text
+
+                text = text.replace('```json', '').replace('```', '').strip()
                 data = json.loads(text)
                 drug.indications = data.get('indications')
                 drug.dosage = data.get('dosage')
