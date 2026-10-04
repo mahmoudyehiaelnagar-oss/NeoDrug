@@ -1,9 +1,9 @@
 import re
 import math
+import traceback
 from fastapi import FastAPI, Depends, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 import os
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -11,7 +11,6 @@ from sqlalchemy import or_
 from . import models, schemas
 from .database import engine, get_db
 
-# Commented out create_all to prevent Read-Only filesystem crashes on Vercel
 # models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Neo Drug API")
@@ -24,7 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API routes
 @app.get("/api")
 @app.get("/api/")
 def api_root():
@@ -99,23 +97,30 @@ def check_interaction(req: schemas.InteractionRequest):
 
     return {"alerts": alerts}
 
-# Serve Static files as a fallback
-# We get the absolute path for Vercel deployment where the working directory is /var/task
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
 @app.get("/")
 def serve_index():
-    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+    index_path = os.path.join(PUBLIC_DIR, "index.html")
+    if not os.path.exists(index_path):
+        # Useful debug information on Vercel
+        files = "\n".join(os.listdir(BASE_DIR)) if os.path.exists(BASE_DIR) else "BASE_DIR missing"
+        pub_files = "\n".join(os.listdir(PUBLIC_DIR)) if os.path.exists(PUBLIC_DIR) else "PUBLIC_DIR missing"
+        return PlainTextResponse(f"ERROR: index.html not found! Path: {index_path}\nBASE_DIR: {BASE_DIR}\nFiles in BASE_DIR:\n{files}\n\nFiles in PUBLIC_DIR:\n{pub_files}")
+    return FileResponse(index_path)
 
 @app.get("/{file_path:path}")
 def serve_static(file_path: str):
-    # Security check to prevent directory traversal
     full_path = os.path.abspath(os.path.join(PUBLIC_DIR, file_path))
     if not full_path.startswith(os.path.abspath(PUBLIC_DIR)):
-        return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+        return PlainTextResponse("Directory traversal attempt blocked.", status_code=403)
 
     if os.path.isfile(full_path):
         return FileResponse(full_path)
-    # Return index.html for unknown routes to support SPA/navigation
-    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+    
+    # Fallback debug
+    index_path = os.path.join(PUBLIC_DIR, "index.html")
+    if not os.path.exists(index_path):
+        return PlainTextResponse(f"File {file_path} not found. Path {full_path} missing.")
+    return FileResponse(index_path)
