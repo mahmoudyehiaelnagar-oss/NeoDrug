@@ -130,9 +130,27 @@ def main():
     # --------------------------------------------------------------
     # 2️⃣  GTK + WebKit (استخدام WebKit2 4.1 مع دعم احتياطي لـ 6.0)
     # --------------------------------------------------------------
+
+    try:
+        import gi
+        gi.require_version("Gtk", "3.0")
+        has_gtk = True
+    except (ImportError, ValueError):
+        has_gtk = False
+
+    if not has_gtk:
+        log("GTK (gi) غير متوفر (غالباً لأنك تستخدم macOS أو Windows). سيتم فتح التطبيق في المتصفح الافتراضي...")
+        import webbrowser
+        webbrowser.open(app_url)
+        try:
+            import time
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            sys.exit(0)
+            
     import gi
 
-    gi.require_version("Gtk", "3.0")
     WebKit2 = None
     for wk_ver in ["4.1", "6.0"]:
         try:

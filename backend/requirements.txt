@@ -1,6 +1,6 @@
-fastapi==0.110.0
-uvicorn==0.29.0
-sqlalchemy==2.0.29
-pydantic==2.6.4
-python-dotenv==1.0.1
-pg8000==1.31.1
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-dotenv
+pg8000
