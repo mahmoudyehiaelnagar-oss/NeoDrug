@@ -2139,8 +2139,8 @@ function buildDrugClinicalProfile(d) {
   if (!d) return null;
   
   // 1. Detect Generic match
-  var genKey = (d.genericEn || '').toLowerCase().replace(/[^a-z]+/g, '');
-  var tradeKey = (d.tradeEn || '').toLowerCase().replace(/[^a-z]+/g, '');
+  var genKey = (d.generic_en || '').toLowerCase().replace(/[^a-z]+/g, '');
+  var tradeKey = (d.trade_en || '').toLowerCase().replace(/[^a-z]+/g, '');
   
   var curated = null;
   for (var k in CURATED_GENERICS) {
@@ -2200,8 +2200,8 @@ function buildDrugClinicalProfile(d) {
   var safety = (curated && curated.safety) ? curated.safety : clsDefaults.safety;
   
   return {
-    tradeEn: d.tradeEn,
-    genericEn: d.genericEn,
+    tradeEn: d.trade_en,
+    genericEn: d.generic_en,
     genericAr: d.genericAr || '',
     form: d.form,
     formAr: d.formAr || d.form,
@@ -2322,8 +2322,8 @@ function applyFilters() {
     if (cls !== 'all' && d.cls !== cls) return false;
     if (form && d.form !== form) return false;
     if (q) {
-      var tradeMatch = d.tradeEn.toLowerCase().indexOf(q) >= 0;
-      var genEnMatch = d.genericEn && d.genericEn.toLowerCase().indexOf(q) >= 0;
+      var tradeMatch = d.trade_en.toLowerCase().indexOf(q) >= 0;
+      var genEnMatch = d.generic_en && d.generic_en.toLowerCase().indexOf(q) >= 0;
       var genArMatch = d.genericAr && d.genericAr.indexOf(q) >= 0;
       var altMatch = d.alternates && d.alternates.some(function(a){ return a.toLowerCase().indexOf(q) >= 0; });
       if (!tradeMatch && !genEnMatch && !genArMatch && !altMatch) return false;
@@ -2376,8 +2376,8 @@ function showCategoryByGeneric(clsKey) {
 function buildGenericGroups(drugsList) {
   var groupsMap = {};
   drugsList.forEach(function(d) {
-    var rawGen = (d.genericEn || '').trim();
-    if (!rawGen || rawGen.length < 2) rawGen = d.tradeEn;
+    var rawGen = (d.generic_en || '').trim();
+    if (!rawGen || rawGen.length < 2) rawGen = d.trade_en;
     var normKey = rawGen.toLowerCase();
 
     if (!groupsMap[normKey]) {
@@ -2434,8 +2434,8 @@ function renderList() {
     html += '<div class="drug-card" onclick="showDrugDetail(' + (start + idx) + ')">' +
       '<div class="drug-icon">💊</div>' +
       '<div class="drug-meta">' +
-        '<div class="drug-trade-name">' + escapeHtml(d.tradeEn) + '</div>' +
-        '<div class="drug-generic-name">' + escapeHtml(d.genericEn) + (d.genericAr ? ' (' + escapeHtml(d.genericAr) + ')' : '') + '</div>' +
+        '<div class="drug-trade-name">' + escapeHtml(d.trade_en) + '</div>' +
+        '<div class="drug-generic-name">' + escapeHtml(d.generic_en) + (d.genericAr ? ' (' + escapeHtml(d.genericAr) + ')' : '') + '</div>' +
         '<div class="drug-badges">' +
           (d.strength ? '<span class="badge badge-accent">' + escapeHtml(d.strength) + '</span>' : '') +
           '<span class="badge badge-form">' + escapeHtml(d.formAr || d.form) + '</span>' +
@@ -2490,8 +2490,8 @@ function renderGenericsList() {
     var uniqueTrades = [];
     var seenTrade = {};
     g.drugs.forEach(function(d) {
-      if (!seenTrade[d.tradeEn.toLowerCase()]) {
-        seenTrade[d.tradeEn.toLowerCase()] = true;
+      if (!seenTrade[d.trade_en.toLowerCase()]) {
+        seenTrade[d.trade_en.toLowerCase()] = true;
         uniqueTrades.push(d);
       }
     });
@@ -2522,7 +2522,7 @@ function renderGenericsList() {
     // Top 8 brands
     uniqueTrades.slice(0, 8).forEach(function(d) {
       html += '<button class="generic-brand-tag" onclick="showDrugDetailObjectByIndex(' + DRUGS_DATA.indexOf(d) + ')">' +
-        '💊 ' + escapeHtml(d.tradeEn) + (d.strength ? ' <small style="opacity:.7">(' + escapeHtml(d.strength) + ')</small>' : '') +
+        '💊 ' + escapeHtml(d.trade_en) + (d.strength ? ' <small style="opacity:.7">(' + escapeHtml(d.strength) + ')</small>' : '') +
       '</button>';
     });
 
@@ -2541,7 +2541,7 @@ function renderGenericsList() {
     
     g.drugs.forEach(function(d) {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:var(--surface-subtle);border-radius:8px;font-size:12px">' +
-        '<div><b>' + escapeHtml(d.tradeEn) + '</b> <span style="color:var(--muted)">' + escapeHtml(d.formAr || d.form) + (d.strength ? ' - ' + d.strength : '') + '</span></div>' +
+        '<div><b>' + escapeHtml(d.trade_en) + '</b> <span style="color:var(--muted)">' + escapeHtml(d.formAr || d.form) + (d.strength ? ' - ' + d.strength : '') + '</span></div>' +
         '<button class="btn btn-ghost" style="min-height:26px;font-size:11px;padding:0 8px" onclick="showDrugDetailObjectByIndex(' + DRUGS_DATA.indexOf(d) + ')">التفاصيل ←</button>' +
       '</div>';
     });
@@ -2627,8 +2627,8 @@ function showDrugDetail(itemIndex) {
 
   var html = '<div class="detail-header">' +
     '<div class="kicker">' + escapeHtml(clsLabel) + (prof.clsNameAr ? ' • ' + escapeHtml(prof.clsNameAr) : '') + '</div>' +
-    '<div class="detail-trade">' + escapeHtml(d.tradeEn) + '</div>' +
-    '<div class="detail-generic-en">' + escapeHtml(d.genericEn) + '</div>' +
+    '<div class="detail-trade">' + escapeHtml(d.trade_en) + '</div>' +
+    '<div class="detail-generic-en">' + escapeHtml(d.generic_en) + '</div>' +
     '<div class="detail-generic-ar">' + escapeHtml(d.genericAr || '') + '</div>' +
     '<div class="drug-badges" style="margin-top:10px">' +
       (d.strength ? '<span class="badge badge-accent" style="font-size:12px;padding:4px 10px">' + escapeHtml(d.strength) + '</span>' : '') +
@@ -2710,8 +2710,8 @@ function showDrugDetail(itemIndex) {
 
   // 5. Action Buttons
   html += '<div style="display:flex;gap:8px;margin-top:16px;flex-direction:column">' +
-    '<button class="btn btn-primary" style="width:100%" onclick="askAiAboutDrug(\'' + escapeAttr(d.tradeEn) + '\')">🤖 اسأل المساعد الذكي عن جرعة واستخدام ' + escapeHtml(d.tradeEn) + '</button>' +
-    '<button class="btn btn-ghost" style="width:100%" onclick="addDrugToChecker(\'' + escapeAttr(d.tradeEn) + '\')">⚡ إضافة للمقارنة وفاحص التفاعلات</button>' +
+    '<button class="btn btn-primary" style="width:100%" onclick="askAiAboutDrug(\'' + escapeAttr(d.trade_en) + '\')">🤖 اسأل المساعد الذكي عن جرعة واستخدام ' + escapeHtml(d.trade_en) + '</button>' +
+    '<button class="btn btn-ghost" style="width:100%" onclick="addDrugToChecker(\'' + escapeAttr(d.trade_en) + '\')">⚡ إضافة للمقارنة وفاحص التفاعلات</button>' +
   '</div>';
 
   container.innerHTML = html;
@@ -2763,7 +2763,7 @@ function onCheckerSearch() {
   if (q.length < 2) { box.style.display = 'none'; return; }
 
   var hits = DRUGS_DATA.filter(function(d){ 
-    return d.tradeEn.toLowerCase().indexOf(q) >= 0 || (d.genericEn && d.genericEn.toLowerCase().indexOf(q) >= 0); 
+    return d.trade_en.toLowerCase().indexOf(q) >= 0 || (d.generic_en && d.generic_en.toLowerCase().indexOf(q) >= 0); 
   }).slice(0, 10);
   
   if (!hits.length) { 
@@ -2778,7 +2778,7 @@ function onCheckerSearch() {
     var item = document.createElement('div');
     item.className = 'checker-sug-item';
     item.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border-subtle);font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center';
-    item.innerHTML = '<div><span>' + escapeHtml(d.tradeEn) + '</span> <span style="font-size:11px;color:var(--muted);font-weight:normal">(' + escapeHtml(d.genericEn) + ')</span></div>' +
+    item.innerHTML = '<div><span>' + escapeHtml(d.trade_en) + '</span> <span style="font-size:11px;color:var(--muted);font-weight:normal">(' + escapeHtml(d.generic_en) + ')</span></div>' +
                      '<span style="font-size:11px;color:var(--accent);font-weight:700;padding:2px 8px;border-radius:6px;background:var(--accent-tint)">+ إضافة</span>';
     item.onclick = function() {
       selectCheckerDrugObject(d);
@@ -2789,9 +2789,9 @@ function onCheckerSearch() {
 
 function selectCheckerDrugObject(d) {
   if (!d) return;
-  if (!CHECKER_DRUGS.some(function(x){ return x.tradeEn.toLowerCase() === d.tradeEn.toLowerCase(); })) {
+  if (!CHECKER_DRUGS.some(function(x){ return x.tradeEn.toLowerCase() === d.trade_en.toLowerCase(); })) {
     CHECKER_DRUGS.push(d);
-    toast('تمت إضافة ' + d.tradeEn);
+    toast('تمت إضافة ' + d.trade_en);
   } else {
     toast('الدواء مضاف بالفعل للقائمة');
   }
@@ -2833,7 +2833,7 @@ function renderSelectedCheckerChips() {
     return;
   }
   box.innerHTML = CHECKER_DRUGS.map(function(d, i) {
-    return '<span class="selected-chip">' + escapeHtml(d.tradeEn) + ' <button onclick="removeCheckerDrug(' + i + ')">✕</button></span>';
+    return '<span class="selected-chip">' + escapeHtml(d.trade_en) + ' <button onclick="removeCheckerDrug(' + i + ')">✕</button></span>';
   }).join('');
 }
 
@@ -2854,14 +2854,14 @@ function renderComparisonTable() {
       '<thead><tr><th>البيان</th>';
 
   CHECKER_DRUGS.forEach(function(d) {
-    html += '<th class="cmp-col-header">' + escapeHtml(d.tradeEn) + '</th>';
+    html += '<th class="cmp-col-header">' + escapeHtml(d.trade_en) + '</th>';
   });
   html += '</tr></thead><tbody>';
 
   // Row 1: Generic Name
   html += '<tr><th>المادة الفعالة</th>';
   CHECKER_DRUGS.forEach(function(d) {
-    html += '<td><b>' + escapeHtml(d.genericEn) + '</b>' + (d.genericAr ? '<br><small style="color:var(--muted)">' + escapeHtml(d.genericAr) + '</small>' : '') + '</td>';
+    html += '<td><b>' + escapeHtml(d.generic_en) + '</b>' + (d.genericAr ? '<br><small style="color:var(--muted)">' + escapeHtml(d.genericAr) + '</small>' : '') + '</td>';
   });
   html += '</tr>';
 
@@ -3189,7 +3189,7 @@ async function runAiComparison() {
   }
   
   var drugsSummary = CHECKER_DRUGS.map(function(d) {
-    return '• ' + d.tradeEn + ' (المادة: ' + d.genericEn + ', التركيز: ' + (d.strength || 'غير محدد') + ', الشكل: ' + (d.formAr || d.form) + ')';
+    return '• ' + d.trade_en + ' (المادة: ' + d.generic_en + ', التركيز: ' + (d.strength || 'غير محدد') + ', الشكل: ' + (d.formAr || d.form) + ')';
   }).join('\n');
 
   var prompt = 'قارن مقارنة إكلينيكية صيدلانية دقيقة بين الأدوية التالية من السوق المصري:\n' +
@@ -3363,8 +3363,8 @@ function findDrugInClinicalDatabase(query) {
 
   for (var i = 0; i < DRUGS_DATA.length; i++) {
     var d = DRUGS_DATA[i];
-    var tradeLower = (d.tradeEn || '').toLowerCase();
-    var genericLower = (d.genericEn || '').toLowerCase();
+    var tradeLower = (d.trade_en || '').toLowerCase();
+    var genericLower = (d.generic_en || '').toLowerCase();
     var normGenAr = normalizeArabicText(d.genericAr || '');
 
     var score = 0;
@@ -3640,7 +3640,7 @@ function analyzeRxText() {
 
   setTimeout(function() {
     var hits = DRUGS_DATA.filter(function(d) {
-      return d.tradeEn.toLowerCase().indexOf(txt) >= 0 || (d.genericEn && d.genericEn.toLowerCase().indexOf(txt) >= 0);
+      return d.trade_en.toLowerCase().indexOf(txt) >= 0 || (d.generic_en && d.generic_en.toLowerCase().indexOf(txt) >= 0);
     }).slice(0, 5);
 
     if (hits.length > 0) {

@@ -158,7 +158,7 @@
             // Test 2: Filter without index
             const t3 = performance.now();
             const filtered1 = data.filter(d =>
-                d.tradeEn.toLowerCase().includes('amox')
+                d.trade_en.toLowerCase().includes('amox')
             );
             const t4 = performance.now();
             metrics.push({

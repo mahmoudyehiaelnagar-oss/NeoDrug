@@ -62,7 +62,7 @@
 
     drugs.forEach((drug, idx) => {
       const card = document.createElement('a');
-      card.href = `detail.html?name=${encodeURIComponent(drug.tradeEn)}`;
+      card.href = `detail?name=${encodeURIComponent(drug.trade_en)}`;
       card.className = 'drug-card';
 
       const icon = document.createElement('div');
@@ -74,18 +74,18 @@
 
       const tradeName = document.createElement('div');
       tradeName.className = 'drug-trade-name';
-      tradeName.textContent = drug.tradeEn || '';
+      tradeName.textContent = drug.trade_en || '';
 
       const genericName = document.createElement('div');
       genericName.className = 'drug-generic-name';
-      genericName.textContent = (drug.genericEn || '') + (drug.genericAr ? ' • ' + drug.genericAr : '') + (drug.strength ? ' • ' + drug.strength : '');
+      genericName.textContent = (drug.generic_en || '') + (drug.generic_ar ? ' • ' + drug.generic_ar : '') + (drug.strength ? ' • ' + drug.strength : '');
 
       meta.appendChild(tradeName);
       meta.appendChild(genericName);
 
       const badge = document.createElement('div');
       badge.className = 'drug-badge';
-      badge.textContent = drug.formAr || drug.form || '';
+      badge.textContent = drug.form_ar || drug.form || '';
 
       card.appendChild(icon);
       card.appendChild(meta);

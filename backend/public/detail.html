@@ -340,19 +340,19 @@ async function loadDrugDetail(name) {
 
   container.innerHTML = `
     <div class="kicker">DRUG MONOGRAPH</div>
-    <h2 class="title">${escapeHtml(drug.tradeEn)}</h2>
-    <p class="desc">${escapeHtml(drug.genericEn || '')} • ${escapeHtml(drug.genericAr || '')}</p>
+    <h2 class="title">${escapeHtml(drug.trade_en)}</h2>
+    <p class="desc">${escapeHtml(drug.generic_en || '')} • ${escapeHtml(drug.generic_ar || '')}</p>
 
     <!-- Basic Specs Card -->
     <div class="card">
       <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--accent-strong)">المعلومات الدوائية والتركيب</h3>
       <div class="info-row">
         <span class="info-label">الاسم التجاري</span>
-        <span class="info-value">${escapeHtml(drug.tradeEn)}</span>
+        <span class="info-value">${escapeHtml(drug.trade_en)}</span>
       </div>
       <div class="info-row">
         <span class="info-label">المادة الفعالة</span>
-        <span class="info-value">${escapeHtml(drug.genericEn || '-')}</span>
+        <span class="info-value">${escapeHtml(drug.generic_en || '-')}</span>
       </div>
       <div class="info-row">
         <span class="info-label">التركيز / القوة</span>
@@ -360,7 +360,7 @@ async function loadDrugDetail(name) {
       </div>
       <div class="info-row">
         <span class="info-label">الشكل الصيدلي</span>
-        <span class="info-value">${escapeHtml(drug.formAr || drug.form || '-')}</span>
+        <span class="info-value">${escapeHtml(drug.form_ar || drug.form || '-')}</span>
       </div>
       <div class="info-row">
         <span class="info-label">التصنيف العلاجي</span>
@@ -387,7 +387,7 @@ async function loadDrugDetail(name) {
       <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px">
         <span>⚠️</span> الآثار الجانبية المحتملة
       </h3>
-      <p style="font-size:13.5px;line-height:1.6;color:var(--fg)">${escapeHtml(drug.sideEffects || 'تختلف حسب المادة الفعالة، وقد تشمل أعراض تحسسية خفيفة.')}</p>
+      <p style="font-size:13.5px;line-height:1.6;color:var(--fg)">${escapeHtml(drug.side_effects || 'تختلف حسب المادة الفعالة، وقد تشمل أعراض تحسسية خفيفة.')}</p>
     </div>
 
     <div class="card">

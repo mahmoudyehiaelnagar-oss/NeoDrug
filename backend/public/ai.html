@@ -489,7 +489,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (matched.length > 0) {
         let resultsText = matched.map(d => {
           let alt = (d.alternates && d.alternates.length > 0) ? d.alternates.slice(0, 6).join(', ') : 'غير مسجل بدائل';
-          return `• 💊 **${d.trade_en || d.tradeEn}**\n  - المادة الفعالة: ${d.generic_en || d.genericEn || d.genericAr || 'غير متوفر'}\n  - التصنيف العلاجي: ${d.cls || 'أدوية عامة'}\n  - الشكل الصيدلاني: ${d.form_ar || d.formAr || d.form || 'أقراص'}\n  - البدائل المتاحة بالسوق المصري: ${alt}\n  - الاستخدام: ${d.indications || 'يستخدم حسب إرشادات الطبيب.'}`;
+          return `• 💊 **${d.trade_en || d.trade_en}**\n  - المادة الفعالة: ${d.generic_en || d.generic_en || d.genericAr || 'غير متوفر'}\n  - التصنيف العلاجي: ${d.cls || 'أدوية عامة'}\n  - الشكل الصيدلاني: ${d.form_ar || d.formAr || d.form || 'أقراص'}\n  - البدائل المتاحة بالسوق المصري: ${alt}\n  - الاستخدام: ${d.indications || 'يستخدم حسب إرشادات الطبيب.'}`;
         }).join('\n\n');
 
         return `🔍 **نتائج الاستعلام الإكلينيكي عبر الخادم:**\n\n${resultsText}\n\n💡 يمكنك استعراض صفحة "الأدوية" أو "التعارضات" لمزيد من التفاصيل.`;

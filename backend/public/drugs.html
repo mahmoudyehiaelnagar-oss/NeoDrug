@@ -394,18 +394,18 @@ function renderDrugs(drugs) {
   if (typeof buildDrugCardFragment === 'function') {
     listEl.innerHTML = '';
     const fragment = buildDrugCardFragment(drugs, 0, (drug) => {
-      window.location.href = `detail?name=${encodeURIComponent(drug.tradeEn)}`;
+      window.location.href = `detail?name=${encodeURIComponent(drug.trade_en)}`;
     });
     listEl.appendChild(fragment);
   } else {
     let html = '';
     drugs.forEach(d => {
       html += `
-        <a href="/detail?name=${encodeURIComponent(d.tradeEn)}" class="drug-card">
+        <a href="/detail?name=${encodeURIComponent(d.trade_en)}" class="drug-card">
           <div class="drug-icon">💊</div>
           <div class="drug-meta">
-            <div class="drug-trade-name">${escapeHtml(d.tradeEn)}</div>
-            <div class="drug-generic-name">${escapeHtml(d.genericEn || '')} • ${escapeHtml(d.strength || '')}</div>
+            <div class="drug-trade-name">${escapeHtml(d.trade_en)}</div>
+            <div class="drug-generic-name">${escapeHtml(d.generic_en || '')} • ${escapeHtml(d.strength || '')}</div>
           </div>
           <div class="drug-badge">${escapeHtml(d.formAr || d.form || '')}</div>
         </a>
