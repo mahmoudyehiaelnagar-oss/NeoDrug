@@ -26,10 +26,12 @@ app.add_middleware(
 
 @app.get("/api")
 @app.get("/api/")
+@app.get("/")
 def api_root():
     return {"message": "API is running perfectly on Vercel!"}
 
 @app.get("/api/drugs", response_model=schemas.PaginatedDrugs)
+@app.get("/drugs", response_model=schemas.PaginatedDrugs)
 def get_drugs(
     q: str = None,
     cls: str = None,
@@ -69,6 +71,7 @@ def get_drugs(
     }
 
 @app.get("/api/drugs/{trade_en}", response_model=schemas.DrugResponse)
+@app.get("/drugs/{trade_en}", response_model=schemas.DrugResponse)
 def get_drug_details(trade_en: str, db: Session = Depends(get_db)):
     drug = db.query(models.Drug).filter(models.Drug.trade_en.ilike(trade_en)).first()
     if not drug:
@@ -76,6 +79,7 @@ def get_drug_details(trade_en: str, db: Session = Depends(get_db)):
     return drug
 
 @app.post("/api/check_interaction")
+@app.post("/check_interaction")
 def check_interaction(req: schemas.InteractionRequest):
     search_string = " ".join(req.drugs).lower()
 
@@ -96,14 +100,3 @@ def check_interaction(req: schemas.InteractionRequest):
     return {"alerts": alerts}
 
 
-# ----------------- Serve Frontend Static Files -----------------
-# Setup path to the root directory where HTML/JS files are located
-FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-
-@app.get("/")
-async def read_index():
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-
-# Mount the static files at the root
-# Note: This MUST be the last route added so it doesn't override /api/ routes
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
