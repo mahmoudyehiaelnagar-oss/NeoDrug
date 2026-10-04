@@ -26,7 +26,6 @@ app.add_middleware(
 
 @app.get("/api")
 @app.get("/api/")
-@app.get("/")
 def api_root():
     return {"message": "API is running perfectly on Vercel!"}
 
