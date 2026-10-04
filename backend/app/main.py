@@ -23,6 +23,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/api")
+@app.get("/api/")
+def api_root():
+    return {"message": "API is running perfectly on Vercel!"}
+
 @app.get("/api/drugs", response_model=schemas.PaginatedDrugs)
 def get_drugs(
     q: str = None,
