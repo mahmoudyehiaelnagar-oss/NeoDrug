@@ -1,0 +1,14 @@
+{
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "drugs_database.db"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    }
+  ]
+}
