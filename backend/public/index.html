@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neo Drug — الصفحة الرئيسية</title>
+<!-- rebuild trigger -->
+<meta name="theme-color" content="#0d9488">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="creative-theme.css">
+<script>
+  let GEMINI_API_KEY = localStorage.getItem('GEMINI_API_KEY') || "";
+</script>
+<style>
+:root {
+  --bg: oklch(98% 0.005 240);
+  --surface: oklch(100% 0 0);
+  --surface-subtle: oklch(97% 0.008 240);
+  --fg: oklch(18% 0.02 240);
+  --muted: oklch(52% 0.015 240);
+  --border: oklch(90% 0.008 240);
+  --border-subtle: oklch(94% 0.005 240);
+  --accent: oklch(52% 0.16 175);
+  --accent-strong: oklch(43% 0.17 175);
+  --accent-tint: oklch(95% 0.04 175);
+  --danger: oklch(56% 0.21 27);
+  --danger-tint: oklch(96% 0.03 27);
+  --success: oklch(58% 0.15 145);
+  --success-tint: oklch(96% 0.03 145);
+  --r: 16px;
+  --font-main: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-main);
+  background: linear-gradient(180deg, var(--bg), oklch(95% 0.01 240));
+  color: var(--fg);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px 8px 32px;
+  min-height: 100vh;
+}
+.app-container {
+  width: 100%;
+  max-width: 480px;
+  min-height: 860px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px -20px oklch(20% 0.02 240 / 0.25);
+  position: relative;
+}
+@media (min-width: 900px) {
+  body { padding: 24px 16px 40px; }
+  .app-container {
+    max-width: 1440px;
+    min-height: 90vh;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto 1fr;
+    border-radius: 24px;
+  }
+  .appbar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding: 16px 24px;
+  }
+  .tabbar {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 73px;
+    height: calc(100vh - 100px);
+    border-left: 1px solid var(--border);
+    border-top: none;
+    padding: 16px;
+    justify-content: flex-start;
+    gap: 6px;
+    background: oklch(100% 0 0);
+  }
+  .tab {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--fg);
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 12px 16px;
+    border-radius: 12px;
+    width: 100%;
+    font-size: 14.5px;
+    gap: 16px;
+    transition: .15s;
+  }
+  .tab:hover { background: var(--surface-subtle); color: var(--accent-strong); }
+  .tab.active { background: var(--accent-tint); color: var(--accent-strong); font-weight: 700; }
+  .tab-icon-wrap {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--surface-subtle);
+  }
+  .tab.active .tab-icon-wrap { background: var(--accent); color: #fff; }
+  main {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 32px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+  }
+}
+@media (max-width: 899px) {
+  .tabbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: oklch(100% 0 0 / 0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 11px;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 10px;
+  }
+  .tab.active { color: var(--accent-strong); font-weight: 700; }
+  .tab-icon-wrap { width: 24px; height: 24px; display: grid; place-items: center; }
+  .tab-icon-wrap svg { width: 20px; height: 20px; }
+  main {
+    padding: 16px 18px calc(110px + env(safe-area-inset-bottom));
+  }
+}
+.appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: oklch(100% 0 0 / 0.94);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  display: grid;
+  place-items: center;
+  color: #fff;
+  box-shadow: 0 4px 12px oklch(52% 0.16 175 / 0.3);
+}
+.brand-mark svg { width: 22px; height: 22px; }
+.brand-title { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; line-height: 1.2; }
+.brand-sub { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.badge-total {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 99px;
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: .15s;
+}
+.search-box:hover { border-color: var(--accent); }
+.search-box svg { width: 20px; height: 20px; color: var(--muted); }
+.kicker { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent-strong); letter-spacing: 0.08em; margin-bottom: 4px; }
+.title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+.desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+.drug-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--fg);
+  transition: .15s;
+}
+.drug-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+.drug-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; flex-shrink: 0; }
+.drug-meta { flex: 1; }
+.drug-trade-name { font-weight: 700; font-size: 14.5px; margin-bottom: 2px; }
+.drug-generic-name { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.section-label { font-size: 12.5px; font-weight: 700; color: var(--muted); margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13.5px;
+  border: none;
+  cursor: pointer;
+  transition: .15s;
+  text-decoration: none;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-strong); }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Header -->
+  <header class="appbar">
+    <a href="index.html" class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">Neo Drug</div>
+        <div class="brand-sub">دليل الأدوية المصري <span class="badge-total">9,747 صنف</span></div>
+      </div>
+    </a>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
+        <div style="font-size:12px;color:var(--muted);font-weight:600">الرئيسية <span style="margin:0 4px">›</span> لوحة التحكم</div>
+        <div style="background:var(--accent-tint);color:var(--accent-strong);font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">الصفحة الرئيسية</div>
+      </div>
+      <div class="kicker">NEO DRUG DATABASE</div>
+      <h2 class="title">أهلاً بك في دليل الأدوية</h2>
+      <p class="desc">قاعدة بيانات شاملة لجميع الأدوية المتداولة في السوق المصري ومثائلها وبدائلها، مع فاحص التفاعلات ومساعد ذكي.</p>
+
+      <a href="drugs.html" class="search-box" style="text-decoration:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <span style="color:var(--muted);font-size:14px">ابحث عن أي دواء أو بديل… (Augmentin, Panadol)</span>
+      </a>
+
+      <!-- Quick Metrics -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+        <div style="background:var(--surface-subtle);border:1px solid var(--border-subtle);border-radius:14px;padding:16px">
+          <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--accent-strong)">9,747</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">صنف تجاري مسجل</div>
+        </div>
+        <div style="background:var(--surface-subtle);border:1px solid var(--border-subtle);border-radius:14px;padding:16px">
+          <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--accent-strong)">1,920+</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">تركيبة وبدائل دوائية</div>
+        </div>
+      </div>
+
+      <div class="section-label">أدوات رئيسية سريعة</div>
+      <a href="drugs.html" class="drug-card">
+        <div class="drug-icon" style="background:var(--accent-tint);color:var(--accent-strong)">💊</div>
+        <div class="drug-meta">
+          <div class="drug-trade-name">دليل الأدوية والبدائل الشامل</div>
+          <div class="drug-generic-name">تصفح والبحث في أكثر من 9,000 دواء ومثيلاتها في مصر</div>
+        </div>
+        <div style="color:var(--muted)">←</div>
+      </a>
+      <a href="checker.html" class="drug-card">
+        <div class="drug-icon" style="background:var(--danger-tint);color:var(--danger)">⚡</div>
+        <div class="drug-meta">
+          <div class="drug-trade-name">فاحص التفاعلات الدوائية والمقارنة</div>
+          <div class="drug-generic-name">اختر دوائين أو أكثر واكتشف التعارضات الطبية وجداول المقارنة</div>
+        </div>
+        <div style="color:var(--muted)">←</div>
+      </a>
+      <a href="ai.html" class="drug-card">
+        <div class="drug-icon" style="background:var(--info-tint);color:var(--info)">🤖</div>
+        <div class="drug-meta">
+          <div class="drug-trade-name">المساعد الذكي وقراءة الروشتات</div>
+          <div class="drug-generic-name">استشر المساعد الصيدلاني الذكي وحلل الروشتات الطبية</div>
+        </div>
+        <div style="color:var(--muted)">←</div>
+      </a>
+    </div>
+
+    <div>
+      <!-- Prescription Scanner CTA -->
+      <div style="background:linear-gradient(135deg,var(--accent-strong),var(--accent));color:#fff;border-radius:var(--r);padding:20px;margin-bottom:20px">
+        <h3 style="font-size:18px;font-weight:700;margin-bottom:6px">مساعد قراءة الروشتات والذكاء الاصطناعي</h3>
+        <p style="font-size:12.5px;opacity:.9;line-height:1.55;margin-bottom:14px">صوّر الروشتة أو اكتب الاسم المكتوب يدويًا للحصول على الدواء وبدائله المسجلة في مصر فورًا.</p>
+        <a href="ai.html" class="btn" style="background:#fff;color:var(--accent-strong);text-decoration:none">تصوير أو إدخال روشتة ←</a>
+      </div>
+
+      <div style="background:var(--surface-subtle);border:1px solid var(--border);border-radius:var(--r);padding:20px">
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:8px">معلومات النظام والبيانات</h4>
+        <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">تم تحديث قاعدة البيانات المصرية بالكامل مع إدراج البدائل والمثائل المعتمدة.</p>
+        <a href="sync.html" class="btn btn-primary" style="font-size:12px;padding:8px 14px;text-decoration:none">إدارة وتصدير البيانات 📥</a>
+      </div>
+    </div>
+<!-- Image Analysis Section -->
+<div class="analysis-section" style="margin:2rem; padding:1rem; background:#f8f8f8; border-radius:12px;">
+  <h2 style="margin-bottom:0.8rem;">تحليل الصورة (Gemini)</h2>
+  <label for="analysis-file" style="display:block;margin-top:8px;margin-bottom:4px;">صورة للمعالجة:</label>
+  <input type="file" id="analysis-file" accept="image/*" style="margin-bottom:0.6rem;" />
+  <textarea id="analysis-question" placeholder="أدخل سؤالك، مثل: اقرأ الروشتة الطبية بدقة، حدد التخصص، استخرج أسماء الأدوية، واقترح بدائل في السوق المصري" style="width:100%;margin-top:0.6rem;"></textarea>
+  <button id="analysis-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">تحليل الصورة</button>
+  <pre id="analysis-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
+<script src="analysis-image.js?v=15"></script>
+</div>
+
+  </main>
+
+  <!-- Navigation Tabbar (Sidebar on desktop, bottom bar on mobile) -->
+  <nav class="tabbar">
+    <a href="index.html" class="tab active">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></span>
+      <span>الرئيسية</span>
+    </a>
+    <a href="drugs.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 21v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/></svg></span>
+      <span>الأدوية</span>
+    </a>
+    <a href="checker.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+      <span>التعارضات</span>
+    </a>
+    <a href="ai.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg></span>
+      <span>المساعد AI</span>
+    </a>
+    <a href="sync.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 0 1-15.5 6.4M3 12a9 9 0 0 1 15.5-6.4M16 18h4v4"/><path d="M8 6H4V2"/></svg></span>
+      <span>البيانات</span>
+    </a>
+  </nav>
+</div>
+
+<script src="api.js"></script>
+<script src="creative-background.js" defer></script>
+</body>
+</html>
+<!-- updated on $(date) -->
+<!-- Rebuild trigger -->

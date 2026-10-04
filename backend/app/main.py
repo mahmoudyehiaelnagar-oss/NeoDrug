@@ -97,36 +97,20 @@ def check_interaction(req: schemas.InteractionRequest):
 
     return {"alerts": alerts}
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# On Vercel, code is deployed to /var/task, so we look for public/ relative to that
-# __file__ for backend/app/main.py → backend/app → backend → project_root
-# If the computed BASE_DIR doesn't have public/, try Vercel's known path
-if not os.path.isdir(os.path.join(BASE_DIR, "public")):
-    # Vercel deploys to /var/task
-    BASE_DIR = "/var/task"
-PUBLIC_DIR = os.path.join(BASE_DIR, "public")
+# main.py is in backend/app/
+# Go up to backend/ -> public/
+PUBLIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "public")
 
 @app.get("/")
 def serve_index():
     index_path = os.path.join(PUBLIC_DIR, "index.html")
     if not os.path.exists(index_path):
-        # Useful debug information on Vercel
-        files = "\n".join(os.listdir(BASE_DIR)) if os.path.exists(BASE_DIR) else "BASE_DIR missing"
-        pub_files = "\n".join(os.listdir(PUBLIC_DIR)) if os.path.exists(PUBLIC_DIR) else "PUBLIC_DIR missing"
-        return PlainTextResponse(f"ERROR: index.html not found! Path: {index_path}\nBASE_DIR: {BASE_DIR}\nFiles in BASE_DIR:\n{files}\n\nFiles in PUBLIC_DIR:\n{pub_files}")
+        return PlainTextResponse("Index file not found.", status_code=404)
     return FileResponse(index_path)
 
 @app.get("/{file_path:path}")
 def serve_static(file_path: str):
     full_path = os.path.abspath(os.path.join(PUBLIC_DIR, file_path))
-    if not full_path.startswith(os.path.abspath(PUBLIC_DIR)):
-        return PlainTextResponse("Directory traversal attempt blocked.", status_code=403)
-
     if os.path.isfile(full_path):
         return FileResponse(full_path)
-    
-    # Fallback debug
-    index_path = os.path.join(PUBLIC_DIR, "index.html")
-    if not os.path.exists(index_path):
-        return PlainTextResponse(f"File {file_path} not found. Path {full_path} missing.")
-    return FileResponse(index_path)
+    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))

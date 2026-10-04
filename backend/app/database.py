@@ -6,10 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# On Vercel, code is in /var/task
-if not os.path.isdir(os.path.join(BASE_DIR, "public")):
-    BASE_DIR = "/var/task"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ORIGINAL_DB_PATH = os.path.join(BASE_DIR, "public", "drugs_database.db")
 
 # If running on Vercel (Read-Only filesystem), copy the DB to /tmp which is writable

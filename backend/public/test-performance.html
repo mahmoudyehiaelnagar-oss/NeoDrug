@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neo Drug - Performance Test</title>
+    <style>
+        body {
+            font-family: 'IBM Plex Sans Arabic', Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+            direction: rtl;
+        }
+        .test-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-card h2 {
+            color: #0d9488;
+            margin-top: 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .status.pass {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .metric:last-child {
+            border-bottom: none;
+        }
+        .metric-value {
+            font-weight: bold;
+            color: #0d9488;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Neo Drug - اختبار التحسينات</h1>
+
+    <div class="test-card">
+        <h2>1. ملفات التحسين</h2>
+        <div id="files-test"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>2. الدوال المحسّنة</h2>
+        <div id="functions-test"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>3. قياس الأداء</h2>
+        <div id="performance-test"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>4. البيانات</h2>
+        <div id="data-test"></div>
+    </div>
+
+    <script src="performance-optimizations.js"></script>
+    <script src="drugs_data.js"></script>
+
+    <script>
+        // Test 1: Check files
+        function testFiles() {
+            const results = [];
+
+            // Check if performance file loaded
+            if (typeof window.debounce === 'function') {
+                results.push('✅ performance-optimizations.js محمّل بنجاح');
+            } else {
+                results.push('❌ performance-optimizations.js غير محمّل');
+            }
+
+            // Check if data loaded
+            if (typeof window.EGYDOSE_DATABASE !== 'undefined') {
+                results.push(`✅ قاعدة البيانات محمّلة (${window.EGYDOSE_DATABASE.length.toLocaleString('ar-EG')} دواء)`);
+            } else {
+                results.push('⏳ قاعدة البيانات قيد التحميل...');
+            }
+
+            document.getElementById('files-test').innerHTML = results.join('<br>');
+        }
+
+        // Test 2: Check functions
+        function testFunctions() {
+            const functions = [
+                'debounce',
+                'throttle',
+                'createSearchIndex',
+                'optimizedFilter',
+                'buildDrugCardFragment',
+                'measurePerformance'
+            ];
+
+            const results = functions.map(fn => {
+                if (typeof window[fn] === 'function') {
+                    return `<span class="status pass">✓</span> <code>${fn}()</code>`;
+                } else {
+                    return `<span class="status fail">✗</span> <code>${fn}()</code>`;
+                }
+            });
+
+            document.getElementById('functions-test').innerHTML = results.join('<br>');
+        }
+
+        // Test 3: Performance benchmarks
+        function testPerformance() {
+            if (typeof window.EGYDOSE_DATABASE === 'undefined') {
+                document.getElementById('performance-test').innerHTML =
+                    '<span class="status pending">انتظر تحميل البيانات...</span>';
+                setTimeout(testPerformance, 1000);
+                return;
+            }
+
+            const data = window.EGYDOSE_DATABASE;
+            const metrics = [];
+
+            // Test 1: Create search index
+            const t1 = performance.now();
+            const index = window.createSearchIndex(data);
+            const t2 = performance.now();
+            metrics.push({
+                name: 'إنشاء فهرس البحث',
+                value: `${(t2 - t1).toFixed(2)} ms`
+            });
+
+            // Test 2: Filter without index
+            const t3 = performance.now();
+            const filtered1 = data.filter(d =>
+                d.tradeEn.toLowerCase().includes('amox')
+            );
+            const t4 = performance.now();
+            metrics.push({
+                name: 'بحث بدون فهرس',
+                value: `${(t4 - t3).toFixed(2)} ms`,
+                extra: `(${filtered1.length} نتيجة)`
+            });
+
+            // Test 3: Filter with index
+            const t5 = performance.now();
+            const filtered2 = window.optimizedFilter(data, index, 'amox', 'all', '');
+            const t6 = performance.now();
+            metrics.push({
+                name: 'بحث مع الفهرس',
+                value: `${(t6 - t5).toFixed(2)} ms`,
+                extra: `(${filtered2.length} نتيجة)`
+            });
+
+            // Calculate improvement
+            const improvement = (((t4 - t3) - (t6 - t5)) / (t4 - t3) * 100).toFixed(1);
+            metrics.push({
+                name: 'تحسين السرعة',
+                value: `${improvement}%`,
+                highlight: true
+            });
+
+            const html = metrics.map(m => `
+                <div class="metric">
+                    <span>${m.name} ${m.extra || ''}</span>
+                    <span class="metric-value ${m.highlight ? 'highlight' : ''}">${m.value}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('performance-test').innerHTML = html;
+        }
+
+        // Test 4: Data info
+        function testData() {
+            if (typeof window.EGYDOSE_DATABASE === 'undefined') {
+                document.getElementById('data-test').innerHTML =
+                    '<span class="status pending">قيد التحميل...</span>';
+                setTimeout(testData, 1000);
+                return;
+            }
+
+            const data = window.EGYDOSE_DATABASE;
+
+            // Count by class
+            const classes = {};
+            data.forEach(d => {
+                classes[d.cls] = (classes[d.cls] || 0) + 1;
+            });
+
+            // Count by form
+            const forms = {};
+            data.forEach(d => {
+                forms[d.form] = (forms[d.form] || 0) + 1;
+            });
+
+            const metrics = [
+                { name: 'إجمالي الأدوية', value: data.length.toLocaleString('ar-EG') },
+                { name: 'التصنيفات', value: Object.keys(classes).length },
+                { name: 'الأشكال الصيدلية', value: Object.keys(forms).length },
+                { name: 'حجم البيانات', value: '~2.3 MB' }
+            ];
+
+            const html = metrics.map(m => `
+                <div class="metric">
+                    <span>${m.name}</span>
+                    <span class="metric-value">${m.value}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('data-test').innerHTML = html;
+        }
+
+        // Run all tests
+        window.addEventListener('load', () => {
+            testFiles();
+            testFunctions();
+            setTimeout(() => {
+                testPerformance();
+                testData();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

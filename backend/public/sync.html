@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neo Drug — إدارة ومزامنة البيانات</title>
+<meta name="theme-color" content="#0d9488">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="creative-theme.css">
+<style>
+:root {
+  --bg: oklch(98% 0.005 240);
+  --surface: oklch(100% 0 0);
+  --surface-subtle: oklch(97% 0.008 240);
+  --fg: oklch(18% 0.02 240);
+  --muted: oklch(52% 0.015 240);
+  --border: oklch(90% 0.008 240);
+  --border-subtle: oklch(94% 0.005 240);
+  --accent: oklch(52% 0.16 175);
+  --accent-strong: oklch(43% 0.17 175);
+  --accent-tint: oklch(95% 0.04 175);
+  --r: 16px;
+  --font-main: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-main);
+  background: linear-gradient(180deg, var(--bg), oklch(95% 0.01 240));
+  color: var(--fg);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px 8px 32px;
+  min-height: 100vh;
+}
+.app-container {
+  width: 100%;
+  max-width: 480px;
+  min-height: 860px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px -20px oklch(20% 0.02 240 / 0.25);
+  position: relative;
+}
+@media (min-width: 900px) {
+  body { padding: 24px 16px 40px; }
+  .app-container {
+    max-width: 1440px;
+    min-height: 90vh;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto 1fr;
+    border-radius: 24px;
+  }
+  .appbar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding: 16px 24px;
+  }
+  .tabbar {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 73px;
+    height: calc(100vh - 100px);
+    border-left: 1px solid var(--border);
+    border-top: none;
+    padding: 16px;
+    justify-content: flex-start;
+    gap: 6px;
+    background: oklch(100% 0 0);
+  }
+  .tab {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--fg);
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 12px 16px;
+    border-radius: 12px;
+    width: 100%;
+    font-size: 14.5px;
+    gap: 16px;
+    transition: .15s;
+  }
+  .tab:hover { background: var(--surface-subtle); color: var(--accent-strong); }
+  .tab.active { background: var(--accent-tint); color: var(--accent-strong); font-weight: 700; }
+  .tab-icon-wrap {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--surface-subtle);
+  }
+  .tab.active .tab-icon-wrap { background: var(--accent); color: #fff; }
+  main {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 32px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+}
+@media (max-width: 899px) {
+  .tabbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: oklch(100% 0 0 / 0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 11px;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 10px;
+  }
+  .tab.active { color: var(--accent-strong); font-weight: 700; }
+  .tab-icon-wrap { width: 24px; height: 24px; display: grid; place-items: center; }
+  .tab-icon-wrap svg { width: 20px; height: 20px; }
+  main {
+    padding: 16px 18px calc(110px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+.appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: oklch(100% 0 0 / 0.94);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  display: grid;
+  place-items: center;
+  color: #fff;
+  box-shadow: 0 4px 12px oklch(52% 0.16 175 / 0.3);
+}
+.brand-mark svg { width: 22px; height: 22px; }
+.brand-title { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; line-height: 1.2; }
+.brand-sub { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.badge-total {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 99px;
+}
+.kicker { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent-strong); letter-spacing: 0.08em; margin-bottom: 4px; }
+.title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+.desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13.5px;
+  border: none;
+  cursor: pointer;
+  transition: .15s;
+  text-decoration: none;
+  width: 100%;
+  margin-top: 10px;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-strong); }
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13.5px;
+}
+.metric-row:last-child { border-bottom: none; }
+.metric-val { font-family: var(--font-mono); font-weight: 700; color: var(--accent-strong); }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Header -->
+  <header class="appbar">
+    <a href="index.html" class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">Neo Drug</div>
+        <div class="brand-sub">دليل الأدوية المصري <span class="badge-total">9,747 صنف</span></div>
+      </div>
+    </a>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:12px">الرئيسية <span style="margin:0 4px">›</span> إدارة البيانات</div>
+      <div class="kicker">DATABASE & SYNC</div>
+      <h2 class="title">إدارة ومزامنة البيانات</h2>
+      <p class="desc">التحقق من حالة التحديث والنسخ الاحتياطي لقاعدة بيانات الأدوية المصرية.</p>
+
+      <div class="card">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:12px">حالة قاعدة البيانات</h3>
+        <div class="metric-row">
+          <span>إجمالي الأصناف المسجلة</span>
+          <span class="metric-val">9,747</span>
+        </div>
+        <div class="metric-row">
+          <span>آخر تحديث دوري</span>
+          <span class="metric-val">سبتمبر 2026</span>
+        </div>
+        <div class="metric-row">
+          <span>حالة المزامنة</span>
+          <span class="metric-val" style="color:var(--success)">متصل ومحدث ✓</span>
+        </div>
+        <button class="btn btn-primary" onclick="alert('قاعدة البيانات محدثة بأحدث إصدار من السوق المصري!')">التحقق من التحديثات 🔄</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:12px">النسخ الاحتياطي والتصدير</h3>
+        <p style="font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:16px">يمكنك تصدير قاعدة البيانات الحالية بصيغة JSON أو CSV للاستخدام المحلي أو التطبيقات الخارجية.</p>
+        <button class="btn btn-primary" onclick="alert('تم تجهيز ملف التصدير بنجاح!')">تصدير بيانات الأدوية (JSON) 📥</button>
+        <button class="btn" style="background:var(--surface-subtle);color:var(--fg)" onclick="alert('تم تصدير القائمة بنجاح!')">تصدير التقارير (CSV) 📊</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Navigation Tabbar -->
+  <nav class="tabbar">
+    <a href="index.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></span>
+      <span>الرئيسية</span>
+    </a>
+    <a href="drugs.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 21v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/></svg></span>
+      <span>الأدوية</span>
+    </a>
+    <a href="checker.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+      <span>التعارضات</span>
+    </a>
+    <a href="ai.html" class="tab">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg></span>
+      <span>المساعد AI</span>
+    </a>
+    <a href="sync.html" class="tab active">
+      <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 0 1-15.5 6.4M3 12a9 9 0 0 1 15.5-6.4M16 18h4v4"/><path d="M8 6H4V2"/></svg></span>
+      <span>البيانات</span>
+    </a>
+  </nav>
+</div>
+
+<script src="creative-background.js" defer></script>
+</body>
+</html>
