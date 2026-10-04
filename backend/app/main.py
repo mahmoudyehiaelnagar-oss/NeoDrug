@@ -98,6 +98,12 @@ def check_interaction(req: schemas.InteractionRequest):
     return {"alerts": alerts}
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# On Vercel, code is deployed to /var/task, so we look for public/ relative to that
+# __file__ for backend/app/main.py → backend/app → backend → project_root
+# If the computed BASE_DIR doesn't have public/, try Vercel's known path
+if not os.path.isdir(os.path.join(BASE_DIR, "public")):
+    # Vercel deploys to /var/task
+    BASE_DIR = "/var/task"
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
 @app.get("/")
