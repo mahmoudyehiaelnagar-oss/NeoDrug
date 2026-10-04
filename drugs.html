@@ -377,7 +377,7 @@ function initDrugsPage() {
       FILTERED_DRUGS = optimizedFilter(EGYDOSE_DATABASE, SEARCH_INDEX, q, cls, form);
     } else {
       FILTERED_DRUGS = EGYDOSE_DATABASE.filter(d => {
-        const matchQ = !q || d.tradeEn.toLowerCase().includes(q.toLowerCase()) || (d.genericEn && d.genericEn.toLowerCase().includes(q.toLowerCase()));
+        const matchQ = !q || (d.tradeEn && d.tradeEn.toLowerCase().includes(q.toLowerCase())) || (d.genericEn && d.genericEn.toLowerCase().includes(q.toLowerCase()));
         const matchCls = cls === 'all' || d.cls === cls;
         const matchForm = form === 'all' || d.form === form;
         return matchQ && matchCls && matchForm;

@@ -485,7 +485,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const matched = allDrugs.filter(d => {
       const text = `${d.tradeEn || ''} ${d.genericEn || ''} ${d.genericAr || ''} ${d.cls || ''} ${d.form || ''}`.toLowerCase();
-      return words.some(w => text.includes(w));
+      return words.every(w => text.includes(w));
     }).slice(0, 8);
 
     if (matched.length > 0) {
@@ -506,7 +506,11 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const OPENROUTER_KEY = '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';
+    let OPENROUTER_KEY = localStorage.getItem('OPENROUTER_KEY');
+    if (!OPENROUTER_KEY) {
+      OPENROUTER_KEY = prompt('Please enter OpenRouter API Key for AI Assistant:');
+      if (OPENROUTER_KEY) localStorage.setItem('OPENROUTER_KEY', OPENROUTER_KEY);
+    }
     const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
     let userContent;
