@@ -1,6 +1,7 @@
 import re
 import math
 import traceback
+import urllib.parse
 from fastapi import FastAPI, Depends, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
@@ -69,7 +70,16 @@ def get_drugs(
 
 @app.get("/api/drugs/{trade_en}", response_model=schemas.DrugResponse)
 def get_drug_details(trade_en: str, db: Session = Depends(get_db)):
-    drug = db.query(models.Drug).filter(models.Drug.trade_en.ilike(trade_en)).first()
+    # Make sure string is fully decoded since it comes from an HTTP URL Parameter
+    decoded_trade = urllib.parse.unquote(trade_en)
+    # Check directly using strict equivalence and case insensitive like matching
+    drug = db.query(models.Drug).filter(
+        or_(
+            models.Drug.trade_en == decoded_trade,
+            models.Drug.trade_en.ilike(decoded_trade)
+        )
+    ).first()
+
     if not drug:
         raise HTTPException(status_code=404, detail="Drug not found")
     return drug
