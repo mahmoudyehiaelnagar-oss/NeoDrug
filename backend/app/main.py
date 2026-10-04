@@ -104,14 +104,21 @@ def get_drug_details(trade_en: str, request: Request, db: Session = Depends(get_
                 """
 
                 if is_openai_compat:
-                    url = "https://api.naga.ac/v1/chat/completions"
+                    if api_key.startswith("sk-or-"):
+                        url = "https://openrouter.ai/api/v1/chat/completions"
+                        model_name = "google/gemini-1.5-flash"
+                    else:
+                        url = "https://api.naga.ac/v1/chat/completions"
+                        model_name = "gpt-4o-mini"
+
                     payload = json.dumps({
-                        "model": "gemini-1.5-flash",
+                        "model": model_name,
                         "messages": [{"role": "user", "content": prompt}]
                     }).encode('utf-8')
                     req = urllib.request.Request(url, data=payload, headers={
                         "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "User-Agent": "Mozilla/5.0"
                     })
                     with urllib.request.urlopen(req) as response:
                         result = json.loads(response.read().decode('utf-8'))
