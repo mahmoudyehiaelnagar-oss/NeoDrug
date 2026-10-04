@@ -96,8 +96,25 @@ def check_interaction(req: schemas.InteractionRequest):
     return {"alerts": alerts}
 
 # main.py is in backend/app/
-# Go up to backend/ -> public/
-PUBLIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "public")
+def get_public_dir():
+    # In Vercel, the directory structure deployed varies based on configuration.
+    # We check multiple likely paths to find the public folder.
+    current_file = os.path.abspath(__file__)
+    candidates = [
+        # 1. /backend/public (if deployed at project root but Vercel keeps folder structure)
+        os.path.join(os.path.dirname(os.path.dirname(current_file)), "public"),
+        # 2. /public (if Vercel treats backend/ as the root or project root was deployed)
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_file))), "public"),
+        # 3. Hardcoded Vercel fallback base paths
+        "/var/task/public",
+        "/var/task/backend/public"
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+    return candidates[0] # ultimate fallback
+
+PUBLIC_DIR = get_public_dir()
 
 @app.get("/")
 def serve_index():
