@@ -11,7 +11,8 @@ from sqlalchemy import or_
 from . import models, schemas
 from .database import engine, get_db
 
-models.Base.metadata.create_all(bind=engine)
+# Commented out create_all to prevent Read-Only filesystem crashes on Vercel
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Neo Drug API")
 
