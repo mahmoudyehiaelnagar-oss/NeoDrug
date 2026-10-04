@@ -10,6 +10,7 @@ import os
 import signal
 import threading
 import socket
+import subprocess
 from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import functools
@@ -119,9 +120,6 @@ def main():
     # --------------------------------------------------------------
     # 1.5 Start FastAPI Backend Process
     # --------------------------------------------------------------
-    import subprocess
-    import sys
-
     log("• Starting FastAPI Backend on port 8000...")
     backend_thread = threading.Thread(
         target=lambda: subprocess.run([sys.executable, "-m", "uvicorn", "backend.app.main:app", "--port", "8000"]),
