@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-dotenv
+pg8000
+aiofiles
