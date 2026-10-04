@@ -29,7 +29,6 @@ def api_root():
     return {"message": "API is running perfectly on Vercel!"}
 
 @app.get("/api/drugs", response_model=schemas.PaginatedDrugs)
-@app.get("/drugs", response_model=schemas.PaginatedDrugs)
 def get_drugs(
     q: str = None,
     cls: str = None,
@@ -69,7 +68,6 @@ def get_drugs(
     }
 
 @app.get("/api/drugs/{trade_en}", response_model=schemas.DrugResponse)
-@app.get("/drugs/{trade_en}", response_model=schemas.DrugResponse)
 def get_drug_details(trade_en: str, db: Session = Depends(get_db)):
     drug = db.query(models.Drug).filter(models.Drug.trade_en.ilike(trade_en)).first()
     if not drug:
@@ -110,6 +108,12 @@ def serve_index():
 
 @app.get("/{file_path:path}")
 def serve_static(file_path: str):
+    # Support extensionless HTML serving
+    if not file_path.endswith('.html') and '.' not in file_path:
+        html_path = os.path.abspath(os.path.join(PUBLIC_DIR, f"{file_path}.html"))
+        if os.path.isfile(html_path):
+            return FileResponse(html_path)
+
     full_path = os.path.abspath(os.path.join(PUBLIC_DIR, file_path))
     if os.path.isfile(full_path):
         return FileResponse(full_path)
