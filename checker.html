@@ -349,7 +349,7 @@ body {
   </nav>
 </div>
 
-<script src="drugs_data.js" defer></script>
+<script src="js/api.js"></script>
 <script>
 let currentDrugs = [];
 
@@ -412,33 +412,33 @@ function removeDrug(idx) {
   updateDrugTags();
 }
 
-function runInteractionCheck(drugs) {
+async function runInteractionCheck(drugs) {
   const resultsArea = document.getElementById('resultsArea');
-  resultsArea.innerHTML = '<div style="color:var(--accent-strong);font-weight:600">جاري تحليل المواد الفعالة والتعارضات الطبية...</div>';
+  resultsArea.innerHTML = '<div style="color:var(--accent-strong);font-weight:600">جاري تحليل المواد الفعالة والتعارضات الطبية عبر الخادم...</div>';
 
-  setTimeout(() => {
-    let warningFound = false;
-    let html = `<div style="font-size:13.5px;margin-bottom:12px;font-weight:700">تم فحص ${drugs.length} أدوية بنجاح:</div>`;
+  const res = await window.api.checkInteractions(drugs);
+  const alerts = res.alerts || [];
 
-    if (drugs.some(d => d.toLowerCase().includes('augmentin') || d.toLowerCase().includes('amox')) &&
-        drugs.some(d => d.toLowerCase().includes('aspirin') || d.toLowerCase().includes('panadol'))) {
-      warningFound = true;
-      html += `
-        <div class="alert-box">
-          <strong>⚠️ تنبيه تعارض متوسط/مرتفع:</strong><br>
-          تم رصد تداخل محتمل بين المضاد الحيوي والمسكنات المختارة. قد يسبب زيادة الضغط على الكبد أو اضطرابات هضمية. يُنصح باستشارة الصيدلي أو الطبيب المعالج.
+  let html = \`<div style="font-size:13.5px;margin-bottom:12px;font-weight:700">تم فحص \${drugs.length} أدوية بنجاح:</div>\`;
+
+  if (alerts.length > 0) {
+    alerts.forEach(alert => {
+      html += \`
+        <div class="alert-box" style="margin-bottom: 8px;">
+          \${alert}
         </div>
-      `;
-    } else {
-      html += `
-        <div class="safe-box">
-          <strong>✅ لم يتم رصد تفاعلات خطيرة:</strong><br>
-          لا توجد تعارضات مسجلة بين الأدوية المدخلة في قاعدة البيانات المصرية. ومع ذلك، يُرجى التأكد من الجرعات ومواعيد الاستخدام.
-        </div>
-      `;
-    }
-    resultsArea.innerHTML = html;
-  }, 400);
+      \`;
+    });
+    html += \`<div style="font-size: 11px; color: var(--muted); margin-top: 8px;">ملاحظة: هذا التحليل استرشادي ولا يغني عن استشارة الطبيب.</div>\`;
+  } else {
+    html += \`
+      <div class="safe-box">
+        <strong>✅ لم يتم رصد تفاعلات خطيرة:</strong><br>
+        لا توجد تعارضات مسجلة بين الأدوية المدخلة في قاعدة البيانات. يُرجى مراجعة الصيدلي للتأكد.
+      </div>
+    \`;
+  }
+  resultsArea.innerHTML = html;
 }
 
 function escapeHtml(str) {

@@ -341,59 +341,43 @@ body {
 </div>
 
 <!-- Load Database and Optimization Scripts -->
-<script src="drugs_data.js" defer></script>
+<script src="js/api.js"></script>
 <script src="performance-optimizations.js"></script>
 <script>
-let SEARCH_INDEX = null;
-let FILTERED_DRUGS = [];
-
 window.addEventListener('DOMContentLoaded', () => {
-  const checkDataInterval = setInterval(() => {
-    if (typeof EGYDOSE_DATABASE !== 'undefined' && EGYDOSE_DATABASE.length > 0) {
-      clearInterval(checkDataInterval);
-      initDrugsPage();
-    }
-  }, 100);
+  initDrugsPage();
 });
 
-function initDrugsPage() {
-  if (typeof createSearchIndex === 'function') {
-    SEARCH_INDEX = createSearchIndex(EGYDOSE_DATABASE);
-  }
-  FILTERED_DRUGS = EGYDOSE_DATABASE;
-  renderDrugs(FILTERED_DRUGS.slice(0, 50));
-  updateCount(FILTERED_DRUGS.length);
-
+async function initDrugsPage() {
   const searchInput = document.getElementById('searchInput');
   const classFilter = document.getElementById('classFilter');
   const formFilter = document.getElementById('formFilter');
 
-  const handleFilter = () => {
+  const fetchAndRender = async () => {
     const q = searchInput.value.trim();
     const cls = classFilter.value;
     const form = formFilter.value;
 
-    if (typeof optimizedFilter === 'function' && SEARCH_INDEX) {
-      FILTERED_DRUGS = optimizedFilter(EGYDOSE_DATABASE, SEARCH_INDEX, q, cls, form);
-    } else {
-      FILTERED_DRUGS = EGYDOSE_DATABASE.filter(d => {
-        const matchQ = !q || d.tradeEn.toLowerCase().includes(q.toLowerCase()) || (d.genericEn && d.genericEn.toLowerCase().includes(q.toLowerCase()));
-        const matchCls = cls === 'all' || d.cls === cls;
-        const matchForm = form === 'all' || d.form === form;
-        return matchQ && matchCls && matchForm;
-      });
-    }
-    renderDrugs(FILTERED_DRUGS.slice(0, 50));
-    updateCount(FILTERED_DRUGS.length);
+    document.getElementById('drugList').innerHTML = '<div class="loading-state">جاري تحميل الأدوية من الخادم...</div>';
+
+    // Fetch from FastAPI
+    const data = await window.api.getDrugs(q, cls === 'all' ? '' : cls, form === 'all' ? '' : form, 1, 50);
+
+    renderDrugs(data.items);
+    updateCount(data.total);
   };
 
+  // Initial load
+  await fetchAndRender();
+
+  // Attach events
   if (typeof debounce === 'function') {
-    searchInput.addEventListener('input', debounce(handleFilter, 300));
+    searchInput.addEventListener('input', debounce(fetchAndRender, 300));
   } else {
-    searchInput.addEventListener('input', handleFilter);
+    searchInput.addEventListener('input', fetchAndRender);
   }
-  classFilter.addEventListener('change', handleFilter);
-  formFilter.addEventListener('change', handleFilter);
+  classFilter.addEventListener('change', fetchAndRender);
+  formFilter.addEventListener('change', fetchAndRender);
 }
 
 function updateCount(count) {

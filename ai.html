@@ -359,8 +359,8 @@ body {
   </nav>
 </div>
 
-<!-- Load Drug Dataset for Context -->
-<script src="drugs_data.js"></script>
+<!-- Load API Client -->
+<script src="js/api.js"></script>
 <script>
 window.addEventListener('DOMContentLoaded', () => {
   const chatInput = document.getElementById('chatInput');
@@ -441,9 +441,8 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // Comprehensive Medical & Clinical Knowledge Base + Drug Search Fallback
-  function localClinicalFallback(query) {
+  async function localClinicalFallback(query) {
     const q = (query || '').toLowerCase().trim();
-    const allDrugs = (typeof window.DRUGS_DATABASE !== 'undefined') ? window.DRUGS_DATABASE : [];
 
     // 1. Symptom / Disease Knowledge Base
     const clinicalKnowledge = [
@@ -483,18 +482,18 @@ window.addEventListener('DOMContentLoaded', () => {
     // 2. Tokenize query words for drug search
     const words = q.split(/\s+/).filter(w => w.length > 1);
 
-    const matched = allDrugs.filter(d => {
-      const text = `${d.tradeEn || ''} ${d.genericEn || ''} ${d.genericAr || ''} ${d.cls || ''} ${d.form || ''}`.toLowerCase();
-      return words.some(w => text.includes(w));
-    }).slice(0, 8);
+    if (words.length > 0) {
+      const res = await window.api.getDrugs(q, 'all', 'all', 1, 8);
+      const matched = res.items || [];
 
-    if (matched.length > 0) {
-      let resultsText = matched.map(d => {
-        let alt = (d.alternates && d.alternates.length > 0) ? d.alternates.slice(0, 6).join(', ') : 'Abimol, Cetal, Panadol';
-        return `• 💊 **${d.tradeEn}**\n  - المادة الفعالة: ${d.genericEn || d.genericAr || 'غير متوفر'}\n  - التصنيف العلاجي: ${d.cls || 'أدوية عامة'}\n  - الشكل الصيدلاني: ${d.formAr || d.form || 'أقراص'}\n  - البدائل المتاحة بالسوق المصري: ${alt}\n  - الاستخدام: ${d.indications || 'يستخدم حسب إرشادات الطبيب.'}`;
-      }).join('\n\n');
+      if (matched.length > 0) {
+        let resultsText = matched.map(d => {
+          let alt = (d.alternates && d.alternates.length > 0) ? d.alternates.slice(0, 6).join(', ') : 'غير مسجل بدائل';
+          return `• 💊 **${d.trade_en || d.tradeEn}**\n  - المادة الفعالة: ${d.generic_en || d.genericEn || d.genericAr || 'غير متوفر'}\n  - التصنيف العلاجي: ${d.cls || 'أدوية عامة'}\n  - الشكل الصيدلاني: ${d.form_ar || d.formAr || d.form || 'أقراص'}\n  - البدائل المتاحة بالسوق المصري: ${alt}\n  - الاستخدام: ${d.indications || 'يستخدم حسب إرشادات الطبيب.'}`;
+        }).join('\n\n');
 
-      return `🔍 **نتائج الاستعلام الإكلينيكي (دليل الأدوية المصري - 9,747 صنف):**\n\n${resultsText}\n\n💡 يمكنك استعراض صفحة "الأدوية" أو "التعارضات" لمزيد من التفاصيل.`;
+        return `🔍 **نتائج الاستعلام الإكلينيكي عبر الخادم:**\n\n${resultsText}\n\n💡 يمكنك استعراض صفحة "الأدوية" أو "التعارضات" لمزيد من التفاصيل.`;
+      }
     }
 
     // 3. General fallback handling replacements or general conditions
@@ -506,7 +505,11 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imageUrl = null) {
-    const OPENROUTER_KEY = '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';
+    let OPENROUTER_KEY = localStorage.getItem('OPENROUTER_KEY');
+    if (!OPENROUTER_KEY) {
+      OPENROUTER_KEY = prompt('Please enter OpenRouter API Key for AI Assistant:');
+      if (OPENROUTER_KEY) localStorage.setItem('OPENROUTER_KEY', OPENROUTER_KEY);
+    }
     const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
     let userContent;

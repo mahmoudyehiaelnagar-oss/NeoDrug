@@ -1,5 +1,5 @@
 // analysis-image.js v12 - Optimized Image Compression + Gemini AI Analysis
-const GEMINI_KEY = "AQ.Ab8RN6KajEtMzidGZDVDHmbaHs8R6cA_IeV-81bmCX5MdoBAig";
+let GEMINI_KEY = localStorage.getItem("GEMINI_KEY");
 
 // ضغط وتصغير الصورة تلقائياً لسرعة الرفع والاستجابة الفورية
 function compressImage(file, maxDimension = 2048, quality = 0.92) {
@@ -39,8 +39,12 @@ function compressImage(file, maxDimension = 2048, quality = 0.92) {
   });
 }
 
-async function callAI(parts, promptText, dataUrl) {
-  const OPENROUTER_KEY = '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';
+async function callAI(promptText, dataUrl) {
+  let OPENROUTER_KEY = localStorage.getItem('OPENROUTER_KEY');
+  if (!OPENROUTER_KEY) {
+    OPENROUTER_KEY = prompt('Please enter OpenRouter API Key for analysis:');
+    if (OPENROUTER_KEY) localStorage.setItem('OPENROUTER_KEY', OPENROUTER_KEY);
+  }
   const url = 'https://openrouter.ai/api/v1/chat/completions';
 
   const res = await fetch(url, {
@@ -89,14 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const question = document.getElementById('analysis-question').value.trim()
         || 'اقرأ الروشتة الطبية بدقة، حدد التخصص الطبي للطبيب، استخرج أسماء الأدوية المكتوبة، واقترح بدائل متاحة في السوق المصري لكل دواء.';
 
-      const parts = [
-        { text: question },
-        { inlineData: { mimeType, data: base64 } }
-      ];
-
-      resultBox.textContent = '🚀 جاري إرسال الصورة لـ Gemini 3.8 Flash وقراءة الروشتة...';
-
-      const result = await callAI(parts, question, `data:${mimeType};base64,${base64}`);
+      const result = await callAI(question, `data:${mimeType};base64,${base64}`);
 
       if (result === null) {
         resultBox.textContent = '⚠️ استغرق الطلب وقتاً أطول من المتوقع، اضغط على زر "تحليل الصورة" للمحاولة مجدداً.';
