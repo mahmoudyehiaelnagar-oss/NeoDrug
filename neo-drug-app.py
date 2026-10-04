@@ -12,8 +12,6 @@ import threading
 import socket
 import subprocess
 from pathlib import Path
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-import functools
 
 # ==============================================================================
 # إعدادات بيئة لينكس — الوضع الافتراضي: البرمجيات (Software Render) لتفادي الشاشة السوداء
@@ -72,30 +70,6 @@ def log(msg):
         pass
 
 
-def find_free_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-class QuietHandler(SimpleHTTPRequestHandler):
-    """خادم HTTP بسيط لا يطبع رسائل الدخول في الطرفية."""
-
-    def log_message(self, fmt, *args):
-        pass
-
-    def end_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Cache-Control", "no-cache")
-        super().end_headers()
-
-
-def start_local_server(directory, port):
-    handler = functools.partial(QuietHandler, directory=directory)
-    httpd = HTTPServer(("127.0.0.1", port), handler)
-    httpd.serve_forever()
-
-
 def main():
     target_page = "index.html"
     for arg in sys.argv[1:]:
@@ -109,16 +83,12 @@ def main():
     log(f"• مسار التطبيق: {APP_DIR}")
     log(f"• الصفحة: {target_page}")
 
-    port = find_free_port()
-    server_thread = threading.Thread(
-        target=start_local_server, args=(APP_DIR, port), daemon=True
-    )
-    server_thread.start()
+    port = 8000
     app_url = f"http://127.0.0.1:{port}/{target_page}"
     log(f"• رابط الخادم المحلي: {app_url}")
 
     # --------------------------------------------------------------
-    # 1.5 Start FastAPI Backend Process
+    # 1.5 Start FastAPI Backend Process (Serves API AND Static files)
     # --------------------------------------------------------------
     log("• Starting FastAPI Backend on port 8000...")
     backend_thread = threading.Thread(
@@ -126,6 +96,10 @@ def main():
         daemon=True
     )
     backend_thread.start()
+
+    # Wait briefly for FastAPI to bind
+    import time
+    time.sleep(1.5)
 
     # --------------------------------------------------------------
     # 2️⃣  GTK + WebKit (استخدام WebKit2 4.1 مع دعم احتياطي لـ 6.0)

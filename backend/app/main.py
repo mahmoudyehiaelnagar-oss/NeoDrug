@@ -23,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# API routes
 @app.get("/api")
 @app.get("/api/")
 def api_root():
@@ -98,4 +98,19 @@ def check_interaction(req: schemas.InteractionRequest):
 
     return {"alerts": alerts}
 
+# Serve Static files as a fallback
+# We get the absolute path for Vercel deployment where the working directory is /var/task
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
+@app.get("/")
+def serve_index():
+    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+
+@app.get("/{file_path:path}")
+def serve_static(file_path: str):
+    full_path = os.path.join(PUBLIC_DIR, file_path)
+    if os.path.isfile(full_path):
+        return FileResponse(full_path)
+    # Return index.html for unknown routes to support SPA/navigation
+    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))

@@ -1,7 +1,13 @@
 {
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.py"
+    }
+  ],
   "functions": {
     "api/index.py": {
-      "includeFiles": "drugs_database.db"
+      "includeFiles": ["drugs_database.db", "public/**"]
     }
   }
 }

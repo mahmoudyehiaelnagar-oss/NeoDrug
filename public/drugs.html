@@ -3,15 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Neo Drug — الصفحة الرئيسية</title>
-<!-- rebuild trigger -->
+<title>Neo Drug — دليل الأدوية والبحث</title>
 <meta name="theme-color" content="#0d9488">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="creative-theme.css">
-<script>
-  let GEMINI_API_KEY = localStorage.getItem('GEMINI_API_KEY') || "";
-</script>
 <style>
 :root {
   --bg: oklch(98% 0.005 240);
@@ -118,10 +114,9 @@ body {
     grid-row: 2;
     padding: 32px;
     overflow-y: auto;
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 24px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 }
 @media (max-width: 899px) {
@@ -191,7 +186,13 @@ body {
   padding: 1px 6px;
   border-radius: 99px;
 }
-.search-box {
+.search-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.search-input-wrap {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -199,15 +200,36 @@ body {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px 16px;
-  margin-bottom: 16px;
-  cursor: pointer;
   transition: .15s;
 }
-.search-box:hover { border-color: var(--accent); }
-.search-box svg { width: 20px; height: 20px; color: var(--muted); }
-.kicker { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent-strong); letter-spacing: 0.08em; margin-bottom: 4px; }
-.title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
-.desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+.search-input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.search-input-wrap svg { width: 20px; height: 20px; color: var(--muted); flex-shrink: 0; }
+.search-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--font-main);
+  font-size: 14.5px;
+  color: var(--fg);
+  outline: none;
+}
+.filters-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.filter-select {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: var(--font-main);
+  font-size: 12.5px;
+  color: var(--fg);
+  outline: none;
+  cursor: pointer;
+}
 .drug-card {
   display: flex;
   align-items: center;
@@ -223,27 +245,12 @@ body {
   transition: .15s;
 }
 .drug-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
-.drug-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; flex-shrink: 0; }
+.drug-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; flex-shrink: 0; background: var(--accent-tint); color: var(--accent-strong); }
 .drug-meta { flex: 1; }
 .drug-trade-name { font-weight: 700; font-size: 14.5px; margin-bottom: 2px; }
 .drug-generic-name { font-size: 12px; color: var(--muted); line-height: 1.4; }
-.section-label { font-size: 12.5px; font-weight: 700; color: var(--muted); margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 0.05em; }
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 13.5px;
-  border: none;
-  cursor: pointer;
-  transition: .15s;
-  text-decoration: none;
-}
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-strong); }
+.drug-badge { font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--surface-subtle); color: var(--muted); }
+.loading-state { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -264,93 +271,57 @@ body {
 
   <!-- Main Content -->
   <main>
-    <div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
-        <div style="font-size:12px;color:var(--muted);font-weight:600">الرئيسية <span style="margin:0 4px">›</span> لوحة التحكم</div>
-        <div style="background:var(--accent-tint);color:var(--accent-strong);font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">الصفحة الرئيسية</div>
-      </div>
-      <div class="kicker">NEO DRUG DATABASE</div>
-      <h2 class="title">أهلاً بك في دليل الأدوية</h2>
-      <p class="desc">قاعدة بيانات شاملة لجميع الأدوية المتداولة في السوق المصري ومثائلها وبدائلها، مع فاحص التفاعلات ومساعد ذكي.</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
+      <div style="font-size:12px;color:var(--muted);font-weight:600">الرئيسية <span style="margin:0 4px">›</span> دليل الأدوية</div>
+      <div id="resultCount" style="font-family:var(--font-mono);font-size:12px;color:var(--accent-strong);font-weight:700">جاري تحميل الأدوية...</div>
+    </div>
 
-      <a href="drugs.html" class="search-box" style="text-decoration:none">
+    <!-- Search & Filters -->
+    <div class="search-container">
+      <div class="search-input-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <span style="color:var(--muted);font-size:14px">ابحث عن أي دواء أو بديل… (Augmentin, Panadol)</span>
-      </a>
-
-      <!-- Quick Metrics -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-        <div style="background:var(--surface-subtle);border:1px solid var(--border-subtle);border-radius:14px;padding:16px">
-          <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--accent-strong)">9,747</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">صنف تجاري مسجل</div>
-        </div>
-        <div style="background:var(--surface-subtle);border:1px solid var(--border-subtle);border-radius:14px;padding:16px">
-          <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;color:var(--accent-strong)">1,920+</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">تركيبة وبدائل دوائية</div>
-        </div>
+        <input type="text" id="searchInput" class="search-input" placeholder="ابحث باسم الدواء، المادة الفعالة، أو الشركة المصنعة..." autocomplete="off">
       </div>
-
-      <div class="section-label">أدوات رئيسية سريعة</div>
-      <a href="drugs.html" class="drug-card">
-        <div class="drug-icon" style="background:var(--accent-tint);color:var(--accent-strong)">💊</div>
-        <div class="drug-meta">
-          <div class="drug-trade-name">دليل الأدوية والبدائل الشامل</div>
-          <div class="drug-generic-name">تصفح والبحث في أكثر من 9,000 دواء ومثيلاتها في مصر</div>
-        </div>
-        <div style="color:var(--muted)">←</div>
-      </a>
-      <a href="checker.html" class="drug-card">
-        <div class="drug-icon" style="background:var(--danger-tint);color:var(--danger)">⚡</div>
-        <div class="drug-meta">
-          <div class="drug-trade-name">فاحص التفاعلات الدوائية والمقارنة</div>
-          <div class="drug-generic-name">اختر دوائين أو أكثر واكتشف التعارضات الطبية وجداول المقارنة</div>
-        </div>
-        <div style="color:var(--muted)">←</div>
-      </a>
-      <a href="ai.html" class="drug-card">
-        <div class="drug-icon" style="background:var(--info-tint);color:var(--info)">🤖</div>
-        <div class="drug-meta">
-          <div class="drug-trade-name">المساعد الذكي وقراءة الروشتات</div>
-          <div class="drug-generic-name">استشر المساعد الصيدلاني الذكي وحلل الروشتات الطبية</div>
-        </div>
-        <div style="color:var(--muted)">←</div>
-      </a>
-    </div>
-
-    <div>
-      <!-- Prescription Scanner CTA -->
-      <div style="background:linear-gradient(135deg,var(--accent-strong),var(--accent));color:#fff;border-radius:var(--r);padding:20px;margin-bottom:20px">
-        <h3 style="font-size:18px;font-weight:700;margin-bottom:6px">مساعد قراءة الروشتات والذكاء الاصطناعي</h3>
-        <p style="font-size:12.5px;opacity:.9;line-height:1.55;margin-bottom:14px">صوّر الروشتة أو اكتب الاسم المكتوب يدويًا للحصول على الدواء وبدائله المسجلة في مصر فورًا.</p>
-        <a href="ai.html" class="btn" style="background:#fff;color:var(--accent-strong);text-decoration:none">تصوير أو إدخال روشتة ←</a>
-      </div>
-
-      <div style="background:var(--surface-subtle);border:1px solid var(--border);border-radius:var(--r);padding:20px">
-        <h4 style="font-size:14px;font-weight:700;margin-bottom:8px">معلومات النظام والبيانات</h4>
-        <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">تم تحديث قاعدة البيانات المصرية بالكامل مع إدراج البدائل والمثائل المعتمدة.</p>
-        <a href="sync.html" class="btn btn-primary" style="font-size:12px;padding:8px 14px;text-decoration:none">إدارة وتصدير البيانات 📥</a>
+      <div class="filters-row">
+        <select id="classFilter" class="filter-select">
+          <option value="all">جميع التصنيفات الطبية</option>
+          <option value="abx">مضادات حيوية (Antibiotics)</option>
+          <option value="analg">مسكنات وخافضات حرارة</option>
+          <option value="gi">أدوية الجهاز الهضمي والمعدة</option>
+          <option value="cv">أدوية القلب والضغط</option>
+          <option value="resp">أدوية الجهاز التنفسي والحساسية</option>
+          <option value="endo">غدد صماء وسكر</option>
+          <option value="neuro">أعصاب ونفسية</option>
+          <option value="derm">جلدية</option>
+          <option value="vit">فيتامينات ومقويات</option>
+        </select>
+        <select id="formFilter" class="filter-select">
+          <option value="all">كل الأشكال الصيدلية</option>
+          <option value="أقراص">أقراص (Tablets)</option>
+          <option value="كبسولات">كبسولات (Capsules)</option>
+          <option value="شراب">شراب (Syrup)</option>
+          <option value="حقن">حقن / فيال / أمبول</option>
+          <option value="نقط">نقط (Drops)</option>
+          <option value="معلق">معلق فموي (Suspension)</option>
+          <option value="لبوس">لبوس (Suppositories)</option>
+          <option value="فوار">فوار / أكياس</option>
+        </select>
       </div>
     </div>
-<!-- Image Analysis Section -->
-<div class="analysis-section" style="margin:2rem; padding:1rem; background:#f8f8f8; border-radius:12px;">
-  <h2 style="margin-bottom:0.8rem;">تحليل الصورة (Gemini)</h2>
-  <label for="analysis-file" style="display:block;margin-top:8px;margin-bottom:4px;">صورة للمعالجة:</label>
-  <input type="file" id="analysis-file" accept="image/*" style="margin-bottom:0.6rem;" />
-  <textarea id="analysis-question" placeholder="أدخل سؤالك، مثل: اقرأ الروشتة الطبية بدقة، حدد التخصص، استخرج أسماء الأدوية، واقترح بدائل في السوق المصري" style="width:100%;margin-top:0.6rem;"></textarea>
-  <button id="analysis-run" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">تحليل الصورة</button>
-  <pre id="analysis-result" style="margin-top:0.8rem; padding:0.8rem; background:#e0f7fa; border:1px solid #b2ebf2; border-radius:6px; white-space:pre-wrap;"></pre>
-<script src="analysis-image.js?v=15"></script>
-</div>
 
+    <!-- Drug Results List -->
+    <div id="drugList">
+      <div class="loading-state">جاري تحميل وتجهيز قاعدة بيانات الأدوية المصرية...</div>
+    </div>
   </main>
 
-  <!-- Navigation Tabbar (Sidebar on desktop, bottom bar on mobile) -->
+  <!-- Navigation Tabbar -->
   <nav class="tabbar">
-    <a href="index.html" class="tab active">
+    <a href="index.html" class="tab">
       <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></span>
       <span>الرئيسية</span>
     </a>
-    <a href="drugs.html" class="tab">
+    <a href="drugs.html" class="tab active">
       <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 21v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/></svg></span>
       <span>الأدوية</span>
     </a>
@@ -369,9 +340,87 @@ body {
   </nav>
 </div>
 
-<script src="js/api.js"></script>
+<!-- Load Database and Optimization Scripts -->
+<script src="api.js"></script>
+<script src="performance-optimizations.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  initDrugsPage();
+});
+
+async function initDrugsPage() {
+  const searchInput = document.getElementById('searchInput');
+  const classFilter = document.getElementById('classFilter');
+  const formFilter = document.getElementById('formFilter');
+
+  const fetchAndRender = async () => {
+    const q = searchInput.value.trim();
+    const cls = classFilter.value;
+    const form = formFilter.value;
+
+    document.getElementById('drugList').innerHTML = '<div class="loading-state">جاري تحميل الأدوية من الخادم...</div>';
+
+    // Fetch from FastAPI
+    const data = await window.api.getDrugs(q, cls === 'all' ? '' : cls, form === 'all' ? '' : form, 1, 50);
+
+    renderDrugs(data.items);
+    updateCount(data.total);
+  };
+
+  // Initial load
+  await fetchAndRender();
+
+  // Attach events
+  if (typeof debounce === 'function') {
+    searchInput.addEventListener('input', debounce(fetchAndRender, 300));
+  } else {
+    searchInput.addEventListener('input', fetchAndRender);
+  }
+  classFilter.addEventListener('change', fetchAndRender);
+  formFilter.addEventListener('change', fetchAndRender);
+}
+
+function updateCount(count) {
+  document.getElementById('resultCount').textContent = `النتائج: ${count.toLocaleString('ar-EG')} صنف`;
+}
+
+function renderDrugs(drugs) {
+  const listEl = document.getElementById('drugList');
+  if (!drugs || drugs.length === 0) {
+    listEl.innerHTML = '<div class="loading-state">لا توجد أدوية مطابقة للبحث.</div>';
+    return;
+  }
+
+  if (typeof buildDrugCardFragment === 'function') {
+    listEl.innerHTML = '';
+    const fragment = buildDrugCardFragment(drugs, 0, (drug) => {
+      window.location.href = `detail.html?name=${encodeURIComponent(drug.tradeEn)}`;
+    });
+    listEl.appendChild(fragment);
+  } else {
+    let html = '';
+    drugs.forEach(d => {
+      html += `
+        <a href="detail.html?name=${encodeURIComponent(d.tradeEn)}" class="drug-card">
+          <div class="drug-icon">💊</div>
+          <div class="drug-meta">
+            <div class="drug-trade-name">${escapeHtml(d.tradeEn)}</div>
+            <div class="drug-generic-name">${escapeHtml(d.genericEn || '')} • ${escapeHtml(d.strength || '')}</div>
+          </div>
+          <div class="drug-badge">${escapeHtml(d.formAr || d.form || '')}</div>
+        </a>
+      `;
+    });
+    listEl.innerHTML = html;
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+}
+</script>
+
 <script src="creative-background.js" defer></script>
 </body>
 </html>
-<!-- updated on $(date) -->
-<!-- Rebuild trigger -->

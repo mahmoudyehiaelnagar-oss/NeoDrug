@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Neo Drug — تفاصيل الدواء</title>
+<title>Neo Drug — فاحص التفاعلات الدوائية</title>
 <meta name="theme-color" content="#0d9488">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -20,6 +20,12 @@
   --accent: oklch(52% 0.16 175);
   --accent-strong: oklch(43% 0.17 175);
   --accent-tint: oklch(95% 0.04 175);
+  --danger: oklch(56% 0.21 27);
+  --danger-tint: oklch(96% 0.03 27);
+  --success: oklch(58% 0.15 145);
+  --success-tint: oklch(96% 0.03 145);
+  --warn: oklch(70% 0.15 75);
+  --warn-tint: oklch(96% 0.03 75);
   --r: 16px;
   --font-main: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
@@ -111,7 +117,7 @@ body {
     padding: 32px;
     overflow-y: auto;
     display: grid;
-    grid-template-columns: 1fr 360px;
+    grid-template-columns: 1fr 1fr;
     gap: 24px;
     align-items: start;
   }
@@ -187,25 +193,31 @@ body {
   border-radius: 99px;
 }
 .kicker { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent-strong); letter-spacing: 0.08em; margin-bottom: 4px; }
-.title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
-.desc { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+.title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+.desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; }
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r);
   padding: 20px;
-  margin-bottom: 16px;
 }
-.info-row {
+.input-group {
   display: flex;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 13.5px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-.info-row:last-child { border-bottom: none; }
-.info-label { color: var(--muted); font-weight: 500; }
-.info-value { font-weight: 700; color: var(--fg); text-align: left; }
+.input-field {
+  flex: 1;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-family: var(--font-main);
+  font-size: 14px;
+  color: var(--fg);
+  outline: none;
+}
+.input-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
 .btn {
   display: inline-flex;
   align-items: center;
@@ -222,6 +234,43 @@ body {
 }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-strong); }
+.drug-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 13px;
+  margin: 4px;
+}
+.drug-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--danger);
+  font-weight: bold;
+}
+.alert-box {
+  background: var(--danger-tint);
+  border: 1px solid oklch(80% 0.1 27);
+  color: var(--danger);
+  padding: 14px;
+  border-radius: 12px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.safe-box {
+  background: var(--success-tint);
+  border: 1px solid oklch(80% 0.1 145);
+  color: var(--success);
+  padding: 14px;
+  border-radius: 12px;
+  margin-top: 12px;
+  font-size: 13.5px;
+}
 </style>
 </head>
 <body>
@@ -243,20 +292,34 @@ body {
   <!-- Main Content -->
   <main>
     <div>
-      <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:12px">
-        <a href="drugs.html" style="color:var(--accent-strong);text-decoration:none">دليل الأدوية</a> <span style="margin:0 4px">›</span> تفاصيل الدواء
-      </div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:12px">الرئيسية <span style="margin:0 4px">›</span> فاحص التفاعلات الدوائية</div>
+      <div class="kicker">SAFETY CHECKER</div>
+      <h2 class="title">فاحص التفاعلات والتعارضات</h2>
+      <p class="desc">أدخل دوائين أو أكثر للتحقق من وجود تعارضات أو تفاعلات دوائية خطيرة بناءً على المادة الفعالة.</p>
 
-      <div id="drugContent">
-        <div class="card" style="text-align:center;padding:40px;color:var(--muted);">جاري تحميل تفاصيل الدواء...</div>
+      <div class="card">
+        <div class="input-group">
+          <input type="text" id="drugInput" class="input-field" placeholder="أدخل اسم الدواء (مثل: Panadol, Augmentin)..." autocomplete="off">
+          <button id="addBtn" class="btn btn-primary">إضافة</button>
+        </div>
+
+        <div id="selectedDrugs" style="margin-top:14px;min-height:40px;display:flex;flex-wrap:wrap;gap:4px">
+          <span style="color:var(--muted);font-size:13px;padding:6px">لم تتم إضافة أدوية بعد. أضف دواءين على الأقل للفحص.</span>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button id="checkBtn" class="btn btn-primary" style="flex:1" disabled>فحص التفاعلات الدوائية ⚡</button>
+          <button id="clearBtn" class="btn" style="background:var(--surface-subtle);color:var(--fg)">مسح الكل</button>
+        </div>
       </div>
     </div>
 
     <div>
-      <div class="card">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:10px">إجراءات سريعة</h3>
-        <a href="drugs.html" class="btn btn-primary" style="width:100%;margin-bottom:8px">العودة لدليل الأدوية ←</a>
-        <a href="checker.html" class="btn" style="width:100%;background:var(--surface-subtle);color:var(--fg);text-decoration:none">فحص التفاعلات مع أدوية أخرى ⚡</a>
+      <div class="card" style="height:100%">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:10px">نتائج التحليل الإكلينيكي</h3>
+        <div id="resultsArea" style="color:var(--muted);font-size:13px;line-height:1.6">
+          أضف الأدوية واضغط على زر "فحص التفاعلات" لعرض تقرير السلامة الدوائية والتعارضات المحتملة.
+        </div>
       </div>
     </div>
   </main>
@@ -271,7 +334,7 @@ body {
       <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 21v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/></svg></span>
       <span>الأدوية</span>
     </a>
-    <a href="checker.html" class="tab">
+    <a href="checker.html" class="tab active">
       <span class="tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
       <span>التعارضات</span>
     </a>
@@ -286,132 +349,96 @@ body {
   </nav>
 </div>
 
-<!-- Load Optimization Scripts -->
-<script src="js/api.js"></script>
+<script src="api.js"></script>
 <script>
+let currentDrugs = [];
+
 window.addEventListener('DOMContentLoaded', () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const drugName = urlParams.get('name');
-  loadDrugDetail(drugName);
+  const drugInput = document.getElementById('drugInput');
+  const addBtn = document.getElementById('addBtn');
+  const checkBtn = document.getElementById('checkBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  addBtn.addEventListener('click', () => {
+    const val = drugInput.value.trim();
+    if (val && !currentDrugs.includes(val)) {
+      currentDrugs.push(val);
+      drugInput.value = '';
+      updateDrugTags();
+    }
+  });
+
+  drugInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      addBtn.click();
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    currentDrugs = [];
+    updateDrugTags();
+    document.getElementById('resultsArea').innerHTML = 'أضف الأدوية واضغط على زر "فحص التفاعلات" لعرض تقرير السلامة الدوائية والتعارضات المحتملة.';
+  });
+
+  checkBtn.addEventListener('click', () => {
+    if (currentDrugs.length < 2) return;
+    runInteractionCheck(currentDrugs);
+  });
 });
 
-async function loadDrugDetail(name) {
-  const container = document.getElementById('drugContent');
-  if (!name) {
-    container.innerHTML = '<div class="card"><h3>لم يتم تحديد دواء</h3><p style="color:var(--muted);margin-top:8px">الرجاء اختيار دواء من <a href="drugs.html">دليل الأدوية</a>.</p></div>';
+function updateDrugTags() {
+  const container = document.getElementById('selectedDrugs');
+  const checkBtn = document.getElementById('checkBtn');
+  if (currentDrugs.length === 0) {
+    container.innerHTML = '<span style="color:var(--muted);font-size:13px;padding:6px">لم تتم إضافة أدوية بعد. أضف دواءين على الأقل للفحص.</span>';
+    checkBtn.disabled = true;
     return;
   }
-
-  const decodedName = decodeURIComponent(name);
-  const drug = await window.api.getDrugDetail(decodedName);
-
-  if (!drug) {
-    container.innerHTML = `
-      <div class="card">
-        <h2 class="title">${escapeHtml(decodedName)}</h2>
-        <p class="desc">عذراً، لم يتم العثور على هذا الدواء بالتفصيل في قاعدة البيانات الحالية.</p>
-        <a href="drugs.html" class="btn btn-primary">العودة للبحث</a>
-      </div>
+  let html = '';
+  currentDrugs.forEach((d, idx) => {
+    html += `
+      <span class="drug-tag">
+        <span>${escapeHtml(d)}</span>
+        <button onclick="removeDrug(${idx})">×</button>
+      </span>
     `;
-    return;
-  }
+  });
+  container.innerHTML = html;
+  checkBtn.disabled = currentDrugs.length < 2;
+}
 
-  let alternatesHtml = '';
-  if (drug.alternates && drug.alternates.length > 0) {
-    alternatesHtml = drug.alternates.map(alt => `<span style="display:inline-block;background:var(--surface-subtle);border:1px solid var(--border);padding:6px 12px;border-radius:10px;margin:4px;font-size:13px">${escapeHtml(alt)}</span>`).join('');
+function removeDrug(idx) {
+  currentDrugs.splice(idx, 1);
+  updateDrugTags();
+}
+
+async function runInteractionCheck(drugs) {
+  const resultsArea = document.getElementById('resultsArea');
+  resultsArea.innerHTML = '<div style="color:var(--accent-strong);font-weight:600">جاري تحليل المواد الفعالة والتعارضات الطبية عبر الخادم...</div>';
+
+  const res = await window.api.checkInteractions(drugs);
+  const alerts = res.alerts || [];
+
+  let html = \`<div style="font-size:13.5px;margin-bottom:12px;font-weight:700">تم فحص \${drugs.length} أدوية بنجاح:</div>\`;
+
+  if (alerts.length > 0) {
+    alerts.forEach(alert => {
+      html += \`
+        <div class="alert-box" style="margin-bottom: 8px;">
+          \${alert}
+        </div>
+      \`;
+    });
+    html += \`<div style="font-size: 11px; color: var(--muted); margin-top: 8px;">ملاحظة: هذا التحليل استرشادي ولا يغني عن استشارة الطبيب.</div>\`;
   } else {
-    alternatesHtml = '<span style="color:var(--muted);font-size:13px">لا توجد بدائل مسجلة لهذا الصنف.</span>';
+    html += \`
+      <div class="safe-box">
+        <strong>✅ لم يتم رصد تفاعلات خطيرة:</strong><br>
+        لا توجد تعارضات مسجلة بين الأدوية المدخلة في قاعدة البيانات. يُرجى مراجعة الصيدلي للتأكد.
+      </div>
+    \`;
   }
-
-  const classNames = {
-    'abx': 'مضادات حيوية (Antibiotics)',
-    'analg': 'مسكنات وخافضات حرارة (Analgesics)',
-    'gi': 'أدوية الجهاز الهضمي والمعدة (GI)',
-    'cv': 'أدوية القلب والضغط (Cardiovascular)',
-    'resp': 'أدوية الجهاز التنفسي والحساسية (Respiratory)',
-    'endo': 'غدد صماء وسكر (Endocrinology)',
-    'neuro': 'أعصاب ونفسية (Neurology & Psych)',
-    'derm': 'جلدية وتطبيقات موضعية (Dermatology)',
-    'vit': 'فيتامينات ومقويات ومكملات (Vitamins & Supplements)',
-    'rheum': 'روماتيزم ومفاصل (Rheumatology)',
-    'onco': 'أورام (Onology)',
-    'other': 'عام / متنوع'
-  };
-
-  container.innerHTML = `
-    <div class="kicker">DRUG MONOGRAPH</div>
-    <h2 class="title">${escapeHtml(drug.tradeEn)}</h2>
-    <p class="desc">${escapeHtml(drug.genericEn || '')} • ${escapeHtml(drug.genericAr || '')}</p>
-
-    <!-- Basic Specs Card -->
-    <div class="card">
-      <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--accent-strong)">المعلومات الدوائية والتركيب</h3>
-      <div class="info-row">
-        <span class="info-label">الاسم التجاري</span>
-        <span class="info-value">${escapeHtml(drug.tradeEn)}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">المادة الفعالة</span>
-        <span class="info-value">${escapeHtml(drug.genericEn || '-')}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">التركيز / القوة</span>
-        <span class="info-value">${escapeHtml(drug.strength || '-')}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">الشكل الصيدلي</span>
-        <span class="info-value">${escapeHtml(drug.formAr || drug.form || '-')}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">التصنيف العلاجي</span>
-        <span class="info-value">${escapeHtml(classNames[drug.cls] || 'ع عام')}</span>
-      </div>
-    </div>
-
-    <!-- Clinical Details Cards -->
-    <div class="card">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-        <span>🎯</span> دواعي الاستعمال والوظيفة
-      </h3>
-      <p style="font-size:13.5px;line-height:1.6;color:var(--fg)">${escapeHtml(drug.indications || 'يستخدم حسب إرشادات الطبيب المعالج والتشخيص الطبي للحالة.')}</p>
-    </div>
-
-    <div class="card">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-        <span>💊</span> الجرعة وطريقة الاستخدام
-      </h3>
-      <p style="font-size:13.5px;line-height:1.6;color:var(--fg)">${escapeHtml(drug.dosage || 'حسب الإرشادات المرفقة مع العبوة أو توجيهات الصيدلي والطبيب.')}</p>
-    </div>
-
-    <div class="card">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-        <span>⚠️</span> الآثار الجانبية المحتملة
-      </h3>
-      <p style="font-size:13.5px;line-height:1.6;color:var(--fg)">${escapeHtml(drug.sideEffects || 'تختلف حسب المادة الفعالة، وقد تشمل أعراض تحسسية خفيفة.')}</p>
-    </div>
-
-    <div class="card">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-        <span>🚫</span> موانع الاستعمال والتحذيرات
-      </h3>
-      <p style="font-size:13.5px;line-height:1.6;color:var(--fg)">${escapeHtml(drug.contraindications || 'الحساسية المعروفة لأي من مكونات المستحضر.')}</p>
-    </div>
-
-    <div class="card">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-        <span>🤰</span> أمان الاستخدام أثناء الحمل والرضاعة
-      </h3>
-      <p style="font-size:13.5px;line-height:1.6;color:var(--fg)">${escapeHtml(drug.pregnancy || 'يُستشار الطبيب قبل الاستخدام أثناء الحمل والرضاعة.')}</p>
-    </div>
-
-    <!-- Alternates Card -->
-    <div class="card">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">البدائل والمثائل المتاحة في مصر</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${alternatesHtml}
-      </div>
-    </div>
-  `;
+  resultsArea.innerHTML = html;
 }
 
 function escapeHtml(str) {
