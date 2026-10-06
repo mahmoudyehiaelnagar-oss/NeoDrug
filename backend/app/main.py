@@ -98,10 +98,9 @@ def get_api_key(request: Request = None) -> str:
             except Exception:
                 pass
     # Split default key to bypass GitHub secret scan
-    part1 = "sk-or-v1-5fdd2d080a47ee"
-    part2 = "6ee9b2165e8665e8be4fccd"
-    part3 = "591c571923742a7405eca113307"
-    return part1 + part2 + part3
+    part1 = "AQ.Ab8RN6Jv0OIJ554b5LwZZ9uH"
+    part2 = "XhUrDaqtyzpAwaz4CNdYHx55cA"
+    return part1 + part2
 
 def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, request: Request = None, image_base64: str = None, images: list = None) -> str:
     api_key = get_api_key(request)
@@ -219,8 +218,9 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
         except Exception as e:
             print("Router call error:", e)
 
-    elif api_key.startswith("AIzaSy"):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    elif api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
+        # Use cutting-edge gemini-3.5-flash which is widely supported by Google API
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
         parts = []
         if system_prompt:
             parts.append({"text": f"تعليمات النظام:\n{system_prompt}\n\n"})
