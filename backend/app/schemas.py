@@ -31,8 +31,11 @@ class PaginatedDrugs(BaseModel):
     pages: int
 
 class ChatRequest(BaseModel):
-    message: str
+    message: Optional[str] = ""
     image_base64: Optional[str] = None
+    images: Optional[List[str]] = []
+    prescription_image: Optional[str] = None
+    lab_image: Optional[str] = None
 
 class InteractionRequest(BaseModel):
     drugs: List[str]

@@ -29,27 +29,8 @@
     canvas.id = 'creative-canvas';
     document.body.prepend(canvas);
 
-    // 4. إضافة شارة إصدار لينكس في رأس الصفحة
-    setupHeaderBadge();
-
-    // 5. تشغيل محرك الجزيئات
+    // 4. تشغيل محرك الجزيئات
     setupMolecularEngine(canvas);
-  }
-
-  function setupHeaderBadge() {
-    const appbar = document.querySelector('.appbar');
-    if (!appbar || document.getElementById('creativeLinuxBadge')) return;
-
-    const badge = document.createElement('div');
-    badge.className = 'creative-theme-toggle';
-    badge.id = 'creativeLinuxBadge';
-    badge.title = 'تطبيق Neo Drug — إصدار لينكس الإبداعي';
-    badge.innerHTML = `
-      <span class="creative-pulse-dot"></span>
-      <span style="font-weight:700;font-size:11.5px">Linux Edition</span>
-    `;
-
-    appbar.appendChild(badge);
   }
 
   function setupMolecularEngine(canvas) {

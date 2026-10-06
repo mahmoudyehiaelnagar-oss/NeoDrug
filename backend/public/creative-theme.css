@@ -1,6 +1,21 @@
+/* تعريف المتغيرات للألوان (دعم الوضع الليلي والنهاري) */
+:root {
+  --bg: #f8fafc;
+  --fg: #0f172a;
+  --surface: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --accent: #0d9488;
+  --accent-strong: #0f766e;
+  --danger: #ef4444;
+  --danger-tint: #fee2e2;
+  --success: #22c55e;
+  --success-tint: #dcfce7;
+}
+
 /* ==========================================================================
    Neo Drug — Creative Visual Experience (Vibrant Aurora & High-Contrast Console)
-   تصميم إبداعي راقي: خلفية أورورا حركية مشبعة بالألوان مع حاوية تطبيق ناصعة وعالية الوضوح
    ========================================================================== */
 
 /* أنيميشن الأورورا السديمية المتدفقة */
@@ -40,8 +55,8 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
-  background-color: #f8fafc !important;
-  color: #0f172a;
+  background-color: var(--bg) !important;
+  color: var(--fg);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -126,13 +141,13 @@ body {
 .app-container {
   position: relative;
   z-index: 10;
-  background: #ffffff !important;
-  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 24px !important;
   box-shadow:
     0 25px 70px -15px rgba(0, 0, 0, 0.15),
     0 0 40px rgba(13, 148, 136, 0.10) !important;
-  color: #0f172a !important;
+  color: var(--fg) !important;
 }
 
 /* شريط الرأس */
@@ -253,26 +268,113 @@ body {
   font-weight: 700;
 }
 
-/* شارة إصدار لينكس في الرأس */
-.creative-theme-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(13, 148, 136, 0.1);
-  border: 1px solid rgba(13, 148, 136, 0.25);
-  border-radius: 99px;
-  padding: 4px 12px;
-  font-size: 11.5px;
-  color: #0f766e;
-  user-select: none;
+/* ==========================================================================
+   نظام الانتقالات والأنيميشن الفوري بدون أي تأخير (Transitions & Animations with 0 Delay)
+   انتقالات فائقة النعومة وتفاعلية لحظية بمجرد النقر أو التمرير
+   ========================================================================== */
+
+/* أنيميشن الدخول السريع والفوري */
+@keyframes instantFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.creative-pulse-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #10b981;
-  animation: pulseNeon 2s infinite ease-in-out;
+@keyframes instantScaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes instantSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes buttonGlowPulse {
+  0%, 100% {
+    box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+  }
+  50% {
+    box-shadow: 0 4px 22px rgba(13, 148, 136, 0.55), 0 0 12px rgba(6, 182, 212, 0.4);
+  }
+}
+
+/* تطبيق انتقالات فورية بدون أي تأخير زمني على كافة العناصر التفاعلية */
+*, *::before, *::after {
+  transition-delay: 0s !important;
+  animation-delay: 0s !important;
+}
+
+/* انتقالات سلسة وسريعة للأزرار والروابط والبطاقات */
+a,
+button,
+input,
+select,
+textarea,
+.tab,
+.btn,
+.btn-primary,
+.drug-card,
+.card,
+.stat-card,
+.feature-card,
+.search-box,
+.filter-btn,
+.drug-badge,
+.badge-total,
+.msg {
+  transition:
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition-delay: 0s !important;
+}
+
+/* تأثيرات الضغط والتفاعل اللحظي (Tactile Feedback) */
+a:active,
+button:active,
+.btn:active,
+.tab:active,
+.drug-card:active {
+  transform: scale(0.98) !important;
+  transition-duration: 0.08s !important;
+}
+
+/* حاوية التطبيق وبطاقات المحتوى عند التحميل */
+.app-container {
+  animation: instantScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) 0s both !important;
+}
+
+.drug-card,
+.card,
+.stat-card,
+.feature-card {
+  animation: instantFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) 0s both !important;
+  will-change: transform, box-shadow;
+}
+
+.search-box {
+  animation: instantSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) 0s both !important;
 }
 
 /* أزرار مخصصة متألقة */
@@ -282,12 +384,13 @@ body {
   color: #ffffff !important;
   font-weight: 700 !important;
   box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35) !important;
+  cursor: pointer;
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, #0f766e, #0369a1) !important;
   box-shadow: 0 6px 20px rgba(13, 148, 136, 0.5) !important;
-  transform: translateY(-1px);
+  transform: translateY(-2px) !important;
 }
 
 /* تصاميم محادثة AI في ai.html */

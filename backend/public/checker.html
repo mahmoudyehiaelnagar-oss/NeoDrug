@@ -414,30 +414,68 @@ function removeDrug(idx) {
 
 async function runInteractionCheck(drugs) {
   const resultsArea = document.getElementById('resultsArea');
-  resultsArea.innerHTML = '<div style="color:var(--accent-strong);font-weight:600">جاري تحليل المواد الفعالة والتعارضات الطبية عبر الخادم...</div>';
+  resultsArea.innerHTML = '<div style="color:var(--accent-strong);font-weight:600;display:flex;align-items:center;gap:8px"><span>⏳</span><span>جاري مطابقة المواد الفعالة وفحص التفاعلات عبر الذكاء الاصطناعي...</span></div>';
 
   const res = await window.api.checkInteractions(drugs);
   const alerts = res.alerts || [];
+  const aiReport = res.ai_report || null;
+  const resolvedDrugs = res.drugs || [];
 
-  let html = \`<div style="font-size:13.5px;margin-bottom:12px;font-weight:700">تم فحص \${drugs.length} أدوية بنجاح:</div>\`;
+  let html = `<div style="font-size:14px;margin-bottom:12px;font-weight:700">📋 تم فحص ${drugs.length} أدوية:</div>`;
 
+  // Resolved drugs chips
+  if (resolvedDrugs.length > 0) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">';
+    resolvedDrugs.forEach(d => {
+      html += `
+        <div style="background:var(--surface-subtle);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:12px">
+          <strong>${escapeHtml(d.trade || d.input)}</strong>
+          <span style="color:var(--muted)">(${escapeHtml(d.generic || 'مادة فعالة')})</span>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+
+  // Alerts
   if (alerts.length > 0) {
     alerts.forEach(alert => {
-      html += \`
-        <div class="alert-box" style="margin-bottom: 8px;">
-          \${alert}
+      const formatted = escapeHtml(alert)
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+      html += `
+        <div class="alert-box" style="margin-bottom: 10px;">
+          ${formatted}
         </div>
-      \`;
+      `;
     });
-    html += \`<div style="font-size: 11px; color: var(--muted); margin-top: 8px;">ملاحظة: هذا التحليل استرشادي ولا يغني عن استشارة الطبيب.</div>\`;
   } else {
-    html += \`
-      <div class="safe-box">
+    html += `
+      <div class="safe-box" style="margin-bottom: 12px;">
         <strong>✅ لم يتم رصد تفاعلات خطيرة:</strong><br>
-        لا توجد تعارضات مسجلة بين الأدوية المدخلة في قاعدة البيانات. يُرجى مراجعة الصيدلي للتأكد.
+        لا توجد تعارضات شديدة مسجلة بين الأدوية المدخلة وفقاً للقواعد الإكلينيكية المعتمدة.
       </div>
-    \`;
+    `;
   }
+
+  // AI Pharmacologist Clinical Report
+  if (aiReport) {
+    const formattedAi = escapeHtml(aiReport)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+    html += `
+      <div style="margin-top:14px;background:rgba(13, 148, 136, 0.06);border:1px solid rgba(13, 148, 136, 0.3);border-radius:12px;padding:14px;">
+        <div style="font-weight:700;color:var(--accent-strong);font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <span>🩺</span><span>تقرير الصيدلي الإكلينيكي الذكي (AI Clinical Report):</span>
+        </div>
+        <div style="font-size:13px;line-height:1.6;color:var(--fg)">
+          ${formattedAi}
+        </div>
+      </div>
+    `;
+  }
+
+  html += `<div style="font-size: 11.5px; color: var(--muted); margin-top: 12px;">⚠️ تنبيه: هذا الفحص استرشادي ولا يغني عن استشارة الطبيب أو الصيدلي المختص.</div>`;
   resultsArea.innerHTML = html;
 }
 

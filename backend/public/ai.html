@@ -303,24 +303,51 @@ body {
     </div>
 
     <div>
-      <!-- OCR Card -->
+      <!-- Dual OCR & Clinical Dose Audit Card -->
       <div class="card">
-        <h3 style="font-size:16px;font-weight:700;margin-bottom:8px">قراءة وتحليل الروشتات (OCR AI)</h3>
-        <p style="font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:14px">ارفع صورة روشتة طبية؛ سيقوم الذكاء الاصطناعي بقراءة خط الطبيب، تحديد الأدوية، واستخراج البدائل المتاحة في السوق المصري.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <h3 style="font-size:15.5px;font-weight:700;">فحص الروشتة والتحاليل الطبية (OCR & Dose Audit)</h3>
+          <span class="drug-badge" style="font-size:11px;padding:3px 8px;">ميزة إكلينيكية حصرية ⚡</span>
+        </div>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px">
+          ارفع <strong>صورة الروشتة</strong> مع <strong>صورة التحليل المخبري</strong> (وظائف كلى، كبد، سكر، سيولة)؛ سيقوم الذكاء الاصطناعي بمطابقة الحالة وتدقيق الجرعات المكتوبة وتصحيح أي جرعة خاطئة بدقة.
+        </p>
 
-        <input type="file" id="prescriptionInput" accept="image/*" style="display: none;">
-        <div id="dropZone" style="border: 2px dashed var(--border); border-radius: 14px; padding: 20px; text-align: center; background: var(--surface-subtle); margin-bottom: 14px; cursor: pointer;">
-          <div style="font-size: 26px; margin-bottom: 6px;">📄📸</div>
-          <div id="dropText" style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">اضغط لاختيار صورة الروشتة أو اسحبها هنا</div>
-          <div style="font-size: 11px; color: var(--muted);">يدعم صيغ PNG, JPG</div>
+        <!-- Dual Upload Slots -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <!-- Prescription Slot -->
+          <div id="prescriptionDropZone" style="border: 2px dashed var(--border); border-radius: 12px; padding: 14px 8px; text-align: center; background: var(--surface-subtle); cursor: pointer; transition: 0.15s; position: relative;">
+            <input type="file" id="prescriptionInput" accept="image/*" style="display: none;">
+            <div style="font-size: 24px; margin-bottom: 4px;">📄📸</div>
+            <div id="prescriptionDropText" style="font-weight: 700; font-size: 12.5px; margin-bottom: 2px;">1. صورة الروشتة</div>
+            <div style="font-size: 11px; color: var(--muted);">الأدوية والجرعات</div>
+
+            <div id="prescriptionPreviewBox" style="display: none; margin-top: 8px;">
+              <img id="prescriptionPreview" src="" alt="روشتة" style="max-height: 85px; max-width: 100%; border-radius: 8px; border: 1px solid var(--border);">
+              <button type="button" id="removePrescriptionBtn" style="display: block; margin: 4px auto 0; background: none; border: none; color: var(--danger); font-size: 11px; font-weight: 600; cursor: pointer;">إلغاء ✕</button>
+            </div>
+          </div>
+
+          <!-- Lab Test Slot -->
+          <div id="labDropZone" style="border: 2px dashed var(--border); border-radius: 12px; padding: 14px 8px; text-align: center; background: var(--surface-subtle); cursor: pointer; transition: 0.15s; position: relative;">
+            <input type="file" id="labInput" accept="image/*" style="display: none;">
+            <div style="font-size: 24px; margin-bottom: 4px;">🧪📊</div>
+            <div id="labDropText" style="font-weight: 700; font-size: 12.5px; margin-bottom: 2px;">2. صورة التحليل</div>
+            <div style="font-size: 11px; color: var(--muted);">كلى، كبد، سكر، دم</div>
+
+            <div id="labPreviewBox" style="display: none; margin-top: 8px;">
+              <img id="labPreview" src="" alt="تحليل" style="max-height: 85px; max-width: 100%; border-radius: 8px; border: 1px solid var(--border);">
+              <button type="button" id="removeLabBtn" style="display: block; margin: 4px auto 0; background: none; border: none; color: var(--danger); font-size: 11px; font-weight: 600; cursor: pointer;">إلغاء ✕</button>
+            </div>
+          </div>
         </div>
 
-        <div id="imagePreviewContainer" style="display: none; margin-bottom: 12px; text-align: center;">
-          <img id="imagePreview" src="" alt="روشتة" style="max-height: 150px; border-radius: 8px; border: 1px solid var(--border);">
-          <div style="font-size: 11px; color: var(--muted); margin-top: 4px;" id="imageName"></div>
+        <!-- Optional Patient Notes -->
+        <div style="margin-bottom: 12px;">
+          <input type="text" id="patientNotes" class="input-field" placeholder="ملاحظات المريض (اختياري: العمر، الوزن، أمراض مزمنة كالسكر أو الضغط)..." style="width: 100%; font-size: 12.5px; padding: 9px 12px;">
         </div>
 
-        <button id="analyzeBtn" class="btn btn-primary" style="width: 100%" disabled>تحليل الروشتة بالذكاء الاصطناعي 🔍</button>
+        <button id="analyzeBtn" class="btn btn-primary" style="width: 100%" disabled>يرجى اختيار صورة روشتة أو تحليل 🔍</button>
       </div>
 
       <!-- AI Status Card -->
@@ -367,30 +394,93 @@ window.addEventListener('DOMContentLoaded', () => {
   const sendBtn = document.getElementById('sendBtn');
   const chatBox = document.getElementById('chatBox');
 
+  // Dual OCR Elements
   const prescriptionInput = document.getElementById('prescriptionInput');
-  const dropZone = document.getElementById('dropZone');
-  const dropText = document.getElementById('dropText');
-  const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-  const imagePreview = document.getElementById('imagePreview');
-  const imageName = document.getElementById('imageName');
+  const prescriptionDropZone = document.getElementById('prescriptionDropZone');
+  const prescriptionDropText = document.getElementById('prescriptionDropText');
+  const prescriptionPreviewBox = document.getElementById('prescriptionPreviewBox');
+  const prescriptionPreview = document.getElementById('prescriptionPreview');
+  const removePrescriptionBtn = document.getElementById('removePrescriptionBtn');
+
+  const labInput = document.getElementById('labInput');
+  const labDropZone = document.getElementById('labDropZone');
+  const labDropText = document.getElementById('labDropText');
+  const labPreviewBox = document.getElementById('labPreviewBox');
+  const labPreview = document.getElementById('labPreview');
+  const removeLabBtn = document.getElementById('removeLabBtn');
+
+  const patientNotes = document.getElementById('patientNotes');
   const analyzeBtn = document.getElementById('analyzeBtn');
 
-  let selectedImageBase64 = null;
+  let selectedPrescriptionBase64 = null;
+  let selectedLabBase64 = null;
+
   // ذاكرة الجلسة التفاعلية للمحادثة والروشتات
   let conversationHistory = [
     {
       role: "system",
-      content: `أنت مساعد صيدلاني وإكلينيكي خبير (Neo AI) متصل بقاعدة بيانات الأدوية المصرية (9,747 صنف).
-مهامك:
-1. عند قراءة الروشتة: قراءة كل الأدوية المكتوبة بالتفصيل سطراً بسطر دون اختصار مع توضيح الجرعات والبدائل المتاحة في السوق المصري.
-2. تذكر دائماً سياق المحادثة بالكامل، والرد بناءً على الروشتة أو الأدوية السابقة التي سأل عنها المستخدم في نفس الجلسة.`
+      content: `أنت مساعد صيدلاني واستشاري إكلينيكي خبير (Neo AI) متصل بقاعدة بيانات الأدوية المصرية (9,747 صنف).
+مهامك الإكلينيكية:
+1. عند قراءة الروشتة: قراءة كل الأدوية والجرعات بالتفصيل مع البدائل المتاحة في السوق المصري.
+2. عند قراءة التحليل: تفسير القيم المخبرية بدقة (وظائف كلى، كبد، سكر، سيولة، صورة دم).
+3. عند فحص الروشتة مع التحليل معاً: مطابقة الحالة سريرياً، تدقيق سلامة الجرعات الموصوفة، واكتشاف أي جرعة خاطئة أو خطيرة مع تحديد الجرعة الصحيحة المعدلة (Dose Adjustment) فوراً.`
     }
   ];
 
-  dropZone.addEventListener('click', () => prescriptionInput.click());
+  function updateAnalyzeBtnState() {
+    if (selectedPrescriptionBase64 && selectedLabBase64) {
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML = 'تحليل الروشتة + التحليل وتدقيق الجرعات 🔬🩺';
+      analyzeBtn.style.background = 'linear-gradient(135deg, #0d9488, #2563eb)';
+    } else if (selectedPrescriptionBase64) {
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML = 'تحليل الروشتة الطبية 📄🔍';
+      analyzeBtn.style.background = 'linear-gradient(135deg, #0d9488, #0284c7)';
+    } else if (selectedLabBase64) {
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML = 'قراءة وتفسير التحليل المخبري 🧪📊';
+      analyzeBtn.style.background = 'linear-gradient(135deg, #0d9488, #0284c7)';
+    } else {
+      analyzeBtn.disabled = true;
+      analyzeBtn.innerHTML = 'يرجى اختيار صورة روشتة أو تحليل 🔍';
+      analyzeBtn.style.background = '';
+    }
+  }
+
+  // Prescription Upload handlers
+  prescriptionDropZone.addEventListener('click', (e) => {
+    if (e.target !== removePrescriptionBtn) prescriptionInput.click();
+  });
   prescriptionInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
-    if (file) handleImageFile(file);
+    if (file) handlePrescriptionFile(file);
+  });
+  removePrescriptionBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectedPrescriptionBase64 = null;
+    prescriptionInput.value = '';
+    prescriptionPreviewBox.style.display = 'none';
+    prescriptionDropText.textContent = '1. صورة الروشتة';
+    prescriptionDropZone.style.borderColor = 'var(--border)';
+    updateAnalyzeBtnState();
+  });
+
+  // Lab Upload handlers
+  labDropZone.addEventListener('click', (e) => {
+    if (e.target !== removeLabBtn) labInput.click();
+  });
+  labInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleLabFile(file);
+  });
+  removeLabBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectedLabBase64 = null;
+    labInput.value = '';
+    labPreviewBox.style.display = 'none';
+    labDropText.textContent = '2. صورة التحليل';
+    labDropZone.style.borderColor = 'var(--border)';
+    updateAnalyzeBtnState();
   });
 
   function compressImage(file, maxDimension = 2048, quality = 0.92) {
@@ -425,26 +515,53 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  async function handleImageFile(file) {
-    dropText.textContent = '⏳ جاري تجهيز وضغط الصورة...';
+  async function handlePrescriptionFile(file) {
+    prescriptionDropText.textContent = '⏳ جاري المعالجة...';
     try {
-      selectedImageBase64 = await compressImage(file);
-      imagePreview.src = selectedImageBase64;
-      imageName.textContent = file.name + ' (جاهزة للتحليل السريع)';
-      imagePreviewContainer.style.display = 'block';
-      dropText.textContent = 'تم إرفاق الروشتة وتجهيزها بنجاح (اضغط لتغيير الصورة)';
-      analyzeBtn.disabled = false;
+      selectedPrescriptionBase64 = await compressImage(file);
+      prescriptionPreview.src = selectedPrescriptionBase64;
+      prescriptionPreviewBox.style.display = 'block';
+      prescriptionDropText.textContent = '✓ الروشتة جاهزة';
+      prescriptionDropZone.style.borderColor = '#0d9488';
+      updateAnalyzeBtnState();
     } catch (err) {
       console.error(err);
-      dropText.textContent = 'حدث خطأ في قراءة الصورة';
+      prescriptionDropText.textContent = 'خطأ في الصورة';
     }
+  }
+
+  async function handleLabFile(file) {
+    labDropText.textContent = '⏳ جاري المعالجة...';
+    try {
+      selectedLabBase64 = await compressImage(file);
+      labPreview.src = selectedLabBase64;
+      labPreviewBox.style.display = 'block';
+      labDropText.textContent = '✓ التحليل جاهز';
+      labDropZone.style.borderColor = '#0d9488';
+      updateAnalyzeBtnState();
+    } catch (err) {
+      console.error(err);
+      labDropText.textContent = 'خطأ في الصورة';
+    }
+  }
+
+  function formatClinicalMarkdown(text) {
+    if (!text) return '';
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code style="background:var(--surface-subtle);padding:2px 6px;border-radius:4px;font-size:12px">$1</code>')
+      .replace(/\n\n/g, '<div style="margin-bottom:10px"></div>')
+      .replace(/\n/g, '<br>');
   }
 
   // Comprehensive Medical & Clinical Knowledge Base + Drug Search Fallback
   async function localClinicalFallback(query) {
     const q = (query || '').toLowerCase().trim();
 
-    // 1. Symptom / Disease Knowledge Base
     const clinicalKnowledge = [
       {
         keywords: ['صداع', 'headache', 'ألم رأس'],
@@ -472,16 +589,13 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     ];
 
-    // Check knowledge base
     for (let item of clinicalKnowledge) {
       if (item.keywords.some(kw => q.includes(kw))) {
         return item.response;
       }
     }
 
-    // 2. Tokenize query words for drug search
     const words = q.split(/\s+/).filter(w => w.length > 1);
-
     if (words.length > 0) {
       const res = await window.api.getDrugs(q, 'all', 'all', 1, 8);
       const matched = res.items || [];
@@ -489,89 +603,69 @@ window.addEventListener('DOMContentLoaded', () => {
       if (matched.length > 0) {
         let resultsText = matched.map(d => {
           let alt = (d.alternates && d.alternates.length > 0) ? d.alternates.slice(0, 6).join(', ') : 'غير مسجل بدائل';
-          return `• 💊 **${d.trade_en || d.trade_en}**\n  - المادة الفعالة: ${d.generic_en || d.generic_en || d.genericAr || 'غير متوفر'}\n  - التصنيف العلاجي: ${d.cls || 'أدوية عامة'}\n  - الشكل الصيدلاني: ${d.form_ar || d.formAr || d.form || 'أقراص'}\n  - البدائل المتاحة بالسوق المصري: ${alt}\n  - الاستخدام: ${d.indications || 'يستخدم حسب إرشادات الطبيب.'}`;
+          return `• 💊 **${d.trade_en}**\n  - المادة الفعالة: ${d.generic_en || 'غير متوفر'}\n  - التصنيف العلاجي: ${d.cls || 'أدوية عامة'}\n  - الشكل الصيدلاني: ${d.form || 'أقراص'}\n  - البدائل المتاحة بالسوق المصري: ${alt}\n  - الاستخدام: ${d.indications || 'يستخدم حسب إرشادات الطبيب.'}`;
         }).join('\n\n');
 
         return `🔍 **نتائج الاستعلام الإكلينيكي عبر الخادم:**\n\n${resultsText}\n\n💡 يمكنك استعراض صفحة "الأدوية" أو "التعارضات" لمزيد من التفاصيل.`;
       }
     }
 
-    // 3. General fallback handling replacements or general conditions
-    if (q.includes('replacement') || q.includes('بديل') || q.includes('بانادول') || q.includes('panadol')) {
-      return `💊 **استشارة إكلينيكية (بدائل الأدوية في السوق المصري):**\nبناءً على طلبك بخصوص البدائل (Replacements):\n• **بدائل البنادول (Panadol / Paracetamol):** أبيمول (Abimol)، سيتال (Cetal)، بيرال (Pyral)، أدول (Adol).\n• **ملاحظة:** تأكد من مطابقة المادة الفعالة (Paracetamol) والتركيز والرجوع للصيدلي.`;
-    }
-
-    return `🩺 **استشارة إكلينيكية شاملة (Neo AI):**\nبناءً على سؤالك "${query}"، أنصحك بما يلي:\n1. إذا كنت تعاني من أعراض مرضية مستمرة (مثل الحمى، آلام الصدر، أو الإجهاد الشديد)، يرجى استشارة الطبيب المختص للتشخيص الدقيق.\n2. للأدوية والعلاجات، يمكنك البحث عنها مباشرة باسم الدواء في دليل الأدوية المصري (9,747 صنف).\n3. تأكد دائماً من قراءة النشرة الداخلية لكل دواء أو استشارة الصيدلي لمعرفة الجرعات الآمنة.`;
+    return `🩺 **استشارة إكلينيكية شاملة (Neo AI):**\nبناءً على سؤالك "${query}"، أنصحك بما يلي:\n1. إذا كنت تعاني من أعراض مرضية مستمرة، يرجى استشارة الطبيب المختص للتشخيص الدقيق.\n2. للأدوية والعلاجات، يمكنك البحث عنها مباشرة باسم الدواء في دليل الأدوية المصري (9,747 صنف).\n3. تأكد دائماً من قراءة النشرة الداخلية لكل دواء أو استشارة الصيدلي لمعرفة الجرعات الآمنة.`;
   }
 
-  async function callAIAPI(promptText, imageUrl = null) {
-    let OPENROUTER_KEY = localStorage.getItem('OPENROUTER_KEY');
-    if (!OPENROUTER_KEY) {
-      OPENROUTER_KEY = prompt('Please enter OpenRouter API Key for AI Assistant:');
-      if (OPENROUTER_KEY) localStorage.setItem('OPENROUTER_KEY', OPENROUTER_KEY);
-    }
-    const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+  async function callAIAPI(promptText, imagesInput = null) {
+    let userContent = promptText;
 
-    let userContent;
-    if (imageUrl) {
-      userContent = [
-        { type: "text", text: promptText },
-        { type: "image_url", image_url: { url: imageUrl } }
-      ];
-    } else {
-      userContent = promptText;
+    let hasImg = false;
+    if (imagesInput) {
+      if (typeof imagesInput === 'string') {
+        hasImg = true;
+        userContent = [
+          { type: "text", text: promptText },
+          { type: "image_url", image_url: { url: imagesInput } }
+        ];
+      } else if (typeof imagesInput === 'object') {
+        hasImg = true;
+        userContent = [{ type: "text", text: promptText }];
+        if (imagesInput.prescription) {
+          userContent.push({ type: "image_url", image_url: { url: imagesInput.prescription } });
+        }
+        if (imagesInput.lab) {
+          userContent.push({ type: "image_url", image_url: { url: imagesInput.lab } });
+        }
+      }
     }
 
-    // حفظ سؤال المستخدم في سجل ذاكرة الجلسة
     conversationHistory.push({
       role: "user",
       content: userContent
     });
 
-    // الاحتفاظ بآخر 10 رسائل لضمان بقاء الذاكرة وسرعة الرد
     if (conversationHistory.length > 11) {
       conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-10)];
     }
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-3.5-flash-lite',
-          max_tokens: 1800,
-          messages: conversationHistory
-        })
-      });
+      const res = await window.api.chat(promptText, imagesInput, conversationHistory);
+      const assistantReply = res.text || 'لم يتم استخراج رد من النموذج.';
 
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      
-      const choice = data.choices?.[0];
-      const assistantReply = choice?.message?.content || 'لم يتم استخراج رد من النموذج.';
-      const isTruncated = choice?.finish_reason === 'length';
-
-      // حفظ رد الذكاء الاصطناعي في الذاكرة ليتذكره في الأسئلة القادمة
       conversationHistory.push({
         role: "assistant",
         content: assistantReply
       });
 
-      return { text: assistantReply, isTruncated };
+      return { text: assistantReply, isTruncated: res.isTruncated || false };
     } catch (err) {
-      console.warn('OpenRouter API error:', err);
-      if (imageUrl) {
-        return { text: '⚠️ تعذر تحليل الروشتة حالياً، يرجى المحاولة بعد لحظات: ' + err.message, isTruncated: false };
+      console.warn('AI Assistant error:', err);
+      if (hasImg) {
+        return { text: '⚠️ تعذر تحليل الصور حالياً، يرجى التأكد من وضوح الصورة والمحاولة مرة أخرى.', isTruncated: false };
       }
       return { text: localClinicalFallback(promptText), isTruncated: false };
     }
   }
 
   function renderResponseWithContinuation(containerDiv, resObj) {
-    containerDiv.textContent = resObj.text;
+    containerDiv.innerHTML = formatClinicalMarkdown(resObj.text);
 
     if (resObj.isTruncated) {
       const btn = document.createElement('button');
@@ -580,9 +674,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
       btn.addEventListener('click', async () => {
         btn.disabled = true;
-        btn.innerHTML = '<span>⏳ جاري استكمال باقي الروشتة...</span>';
+        btn.innerHTML = '<span>⏳ جاري استكمال باقي التقرير...</span>';
 
-        const continuation = await callAIAPI("أكمل باقي قراءة الروشتة والبدائل والجرعات من مكان توقفك تماماً دون تكرار ما سبق.");
+        const continuation = await callAIAPI("أكمل باقي قراءة الروشتة/التحليل والبدائل والجرعات من مكان توقفك تماماً دون تكرار ما سبق.");
         btn.remove();
 
         const extraDiv = document.createElement('div');
@@ -624,25 +718,61 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   analyzeBtn.addEventListener('click', async () => {
-    if (!selectedImageBase64) return;
+    const isDual = selectedPrescriptionBase64 && selectedLabBase64;
+    const isPrescriptionOnly = selectedPrescriptionBase64 && !selectedLabBase64;
+    const isLabOnly = !selectedPrescriptionBase64 && selectedLabBase64;
+    if (!isDual && !isPrescriptionOnly && !isLabOnly) return;
+
+    const notesVal = patientNotes.value.trim();
+    const notesText = notesVal ? `\n• ملاحظات المريض: ${notesVal}` : '';
 
     const userDiv = document.createElement('div');
     userDiv.className = 'msg user';
-    userDiv.textContent = '📄 [طلب تحليل روشتة طبية بالذكاء الاصطناعي (OCR)]';
+
+    let userLabel = '';
+    let loadingText = '';
+    let prompt = '';
+    let payloadImages = null;
+
+    if (isDual) {
+      userLabel = `📄🧪 [طلب فحص الروشتة الطبية مع التحليل المخبري وتدقيق الجرعات]${notesText}`;
+      loadingText = '🔬 جاري قراءة الروشتة وفحص نتائج التحاليل المخبرية ومطابقة الجرعات وتدقيق أي جرعة خاطئة عبر Vision AI... ⏳';
+      prompt = `يرجى فحص صورة الروشتة وصورة التحليل الطبي معاً ومطابقة الحالة إكلينيكياً:
+1. قراءة الروشتة: الأدوية والجرعات المكتوبة.
+2. قراءة التحليل: جميع النتائج والقيم الطبيعية وغير الطبيعية (وظائف كلى، كبد، سكر، سيولة، إلخ).
+3. تقييم الحالة المرضية.
+4. تدقيق الجرعات (Dose Audit & Dose Adjustment): هل الجرعات المكتوبة في الروشتة آمنة؟ إذا كانت هناك جرعة خاطئة أو مفرطة أو خطيرة بناءً على وظائف الكلى/الكبد أو التحاليل، حدد الخطأ بوضوح واذكر الجرعة الصحيحة المعدلة إكلينيكياً والبدائل الآمنة.
+5. نصائح وإرشادات هامة للمريض.${notesText}`;
+      payloadImages = { prescription: selectedPrescriptionBase64, lab: selectedLabBase64 };
+    } else if (isPrescriptionOnly) {
+      userLabel = `📄 [طلب قراءة وتحليل روشتة طبية (OCR)]${notesText}`;
+      loadingText = '🔍 جاري قراءة الروشتة واستخراج الأدوية والجرعات والبدائل المتاحة في السوق المصري... ⏳';
+      prompt = `يرجى قراءة هذه الروشتة الطبية بالكامل وبدقة:
+1. التخصص والتشخيص المكتوب.
+2. قائمة بجميع الأدوية سطراً بسطر: الاسم، التركيز، الجرعة، وبدائل كل دواء في السوق المصري.
+3. تنبيهات هامة للمريض.${notesText}`;
+      payloadImages = selectedPrescriptionBase64;
+    } else {
+      userLabel = `🧪 [طلب قراءة وتفسير تحليل مخبري طبي]${notesText}`;
+      loadingText = '📊 جاري قراءة التحليل المخبري وتفسير القيم والنتائج الطبية... ⏳';
+      prompt = `يرجى قراءة هذا التحليل الطبي وتفسير النتائج:
+1. تحديد نوع التحليل وقراءة جميع القيم والمعدلات الطبيعية.
+2. تحديد أي قيم غير طبيعية (مرتفعة أو منخفضة) وماذا تعني طبياً.
+3. توصيات ونصائح وتنبيهات بخصوص الأدوية المتأثرة بهذه التحاليل.${notesText}`;
+      payloadImages = selectedLabBase64;
+    }
+
+    userDiv.textContent = userLabel;
     chatBox.appendChild(userDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'msg ai';
-    loadingDiv.textContent = '🔍 جاري قراءة الروشتة وتحليل الأدوية والتخصص الطبي عبر نموذج Vision AI...';
+    loadingDiv.textContent = loadingText;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    const prompt = `يرجى قراءة هذه الروشتة الطبية بالكامل وبإيجاز شديد ودقيق:
-1. التخصص والتشخيص المكتوب.
-2. قائمة بجميع الأدوية سطراً بسطر: الاسم، التركيز، الجرعة، وبدائل كل دواء في السوق المصري.
-3. تنبيهات هامة للمريضة.`;
-    const aiResponse = await callAIAPI(prompt, selectedImageBase64);
+    const aiResponse = await callAIAPI(prompt, payloadImages);
     renderResponseWithContinuation(loadingDiv, aiResponse);
     chatBox.scrollTop = chatBox.scrollHeight;
   });
