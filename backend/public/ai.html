@@ -614,53 +614,37 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imagesInput = null) {
-    let userContent = promptText;
-
-    let hasImg = false;
-    if (imagesInput) {
-      if (typeof imagesInput === 'string') {
-        hasImg = true;
-        userContent = [
-          { type: "text", text: promptText },
-          { type: "image_url", image_url: { url: imagesInput } }
-        ];
-      } else if (typeof imagesInput === 'object') {
-        hasImg = true;
-        userContent = [{ type: "text", text: promptText }];
-        if (imagesInput.prescription) {
-          userContent.push({ type: "image_url", image_url: { url: imagesInput.prescription } });
-        }
-        if (imagesInput.lab) {
-          userContent.push({ type: "image_url", image_url: { url: imagesInput.lab } });
-        }
-      }
-    }
-
-    conversationHistory.push({
-      role: "user",
-      content: userContent
-    });
-
-    if (conversationHistory.length > 11) {
-      conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-10)];
-    }
+    const historyToSend = conversationHistory
+      .filter(h => h.role !== 'system')
+      .map(h => ({
+        role: h.role,
+        content: typeof h.content === 'string' ? h.content : (h.summary || promptText || 'تحليل صورة روشتة')
+      }));
 
     try {
-      const res = await window.api.chat(promptText, imagesInput, conversationHistory);
+      const res = await window.api.chat(promptText, imagesInput, historyToSend);
       const assistantReply = res.text || 'لم يتم استخراج رد من النموذج.';
 
+      conversationHistory.push({
+        role: "user",
+        content: promptText || (imagesInput ? "صورة روشتة / تحليل طبي تم تحليلها واستخراج الأدوية" : "")
+      });
       conversationHistory.push({
         role: "assistant",
         content: assistantReply
       });
 
+      if (conversationHistory.length > 12) {
+        conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-10)];
+      }
+
       return { text: assistantReply, isTruncated: res.isTruncated || false };
     } catch (err) {
       console.warn('AI Assistant error:', err);
-      if (hasImg) {
+      if (imagesInput) {
         return { text: '⚠️ تعذر تحليل الصور حالياً، يرجى التأكد من وضوح الصورة والمحاولة مرة أخرى.', isTruncated: false };
       }
-      return { text: localClinicalFallback(promptText), isTruncated: false };
+      return { text: await localClinicalFallback(promptText), isTruncated: false };
     }
   }
 

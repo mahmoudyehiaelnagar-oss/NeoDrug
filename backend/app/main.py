@@ -253,10 +253,13 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 else:
                     c_text = str(raw_c).strip()
                 if c_text:
-                    contents.append({
-                        "role": role,
-                        "parts": [{"text": c_text}]
-                    })
+                    if contents and contents[-1]["role"] == role:
+                        contents[-1]["parts"][0]["text"] += "\n" + c_text
+                    else:
+                        contents.append({
+                            "role": role,
+                            "parts": [{"text": c_text}]
+                        })
 
         current_parts = []
         if prompt:
@@ -274,10 +277,13 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
         if not current_parts:
             current_parts.append({"text": "مرحباً"})
 
-        contents.append({
-            "role": "user",
-            "parts": current_parts
-        })
+        if contents and contents[-1]["role"] == "user":
+            contents[-1]["parts"].extend(current_parts)
+        else:
+            contents.append({
+                "role": "user",
+                "parts": current_parts
+            })
 
         req_dict = {"contents": contents}
         if system_prompt:
