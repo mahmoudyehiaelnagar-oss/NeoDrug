@@ -40,21 +40,60 @@ def get_drugs(
 ):
     query = db.query(models.Drug)
 
-    if q:
-        search = f"%{q.lower()}%"
+    if q and q.strip():
+        search = f"%{q.strip().lower()}%"
         query = query.filter(
             or_(
                 models.Drug.trade_en.ilike(search),
+                models.Drug.trade_ar.ilike(search),
                 models.Drug.generic_en.ilike(search),
-                models.Drug.generic_ar.ilike(search)
+                models.Drug.generic_ar.ilike(search),
+                models.Drug.strength.ilike(search)
             )
         )
 
-    if cls and cls != 'all':
-        query = query.filter(models.Drug.cls == cls)
+    if cls and cls != 'all' and cls.strip():
+        c_val = cls.strip()
+        query = query.filter(
+            or_(
+                models.Drug.cls == c_val,
+                models.Drug.cls.ilike(f"%{c_val}%")
+            )
+        )
 
-    if form and form != 'all':
-        query = query.filter(models.Drug.form.ilike(f"%{form}%"))
+    if form and form != 'all' and form.strip():
+        f_val = form.strip().lower()
+        if f_val in ("أقراص", "tablets", "tab"):
+            query = query.filter(or_(models.Drug.form.ilike('%tab%'), models.Drug.form_ar.ilike('%أقراص%')))
+        elif f_val in ("كبسولات", "capsules", "cap"):
+            query = query.filter(or_(models.Drug.form.ilike('%cap%'), models.Drug.form_ar.ilike('%كبسول%')))
+        elif f_val in ("شراب", "syrup"):
+            query = query.filter(or_(models.Drug.form.ilike('%syrup%'), models.Drug.form_ar.ilike('%شراب%')))
+        elif f_val in ("حقن", "injection", "vial", "ampoule", "amp"):
+            query = query.filter(or_(
+                models.Drug.form.ilike('%vial%'),
+                models.Drug.form.ilike('%amp%'),
+                models.Drug.form.ilike('%inj%'),
+                models.Drug.form_ar.ilike('%حقن%'),
+                models.Drug.form_ar.ilike('%أمبول%')
+            ))
+        elif f_val in ("نقط", "drops"):
+            query = query.filter(or_(models.Drug.form.ilike('%drop%'), models.Drug.form_ar.ilike('%نقط%')))
+        elif f_val in ("معلق", "suspension", "susp"):
+            query = query.filter(or_(models.Drug.form.ilike('%susp%'), models.Drug.form_ar.ilike('%معلق%')))
+        elif f_val in ("لبوس", "suppositories", "supp"):
+            query = query.filter(or_(models.Drug.form.ilike('%supp%'), models.Drug.form_ar.ilike('%لبوس%')))
+        elif f_val in ("فوار", "sachets", "effervescent", "sachet"):
+            query = query.filter(or_(
+                models.Drug.form.ilike('%sachet%'),
+                models.Drug.form.ilike('%eff%'),
+                models.Drug.form_ar.ilike('%فوار%'),
+                models.Drug.form_ar.ilike('%أكياس%')
+            ))
+        elif f_val in ("بخاخ", "spray", "inhaler"):
+            query = query.filter(or_(models.Drug.form.ilike('%spray%'), models.Drug.form.ilike('%inhal%'), models.Drug.form_ar.ilike('%بخاخ%')))
+        else:
+            query = query.filter(or_(models.Drug.form.ilike(f"%{form}%"), models.Drug.form_ar.ilike(f"%{form}%")))
 
     total = query.count()
     pages = math.ceil(total / size) if total > 0 else 0

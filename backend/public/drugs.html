@@ -292,8 +292,10 @@ body {
           <option value="resp">أدوية الجهاز التنفسي والحساسية</option>
           <option value="endo">غدد صماء وسكر</option>
           <option value="neuro">أعصاب ونفسية</option>
-          <option value="derm">جلدية</option>
+          <option value="rheum">روماتيزم وعظام ومفاصل</option>
+          <option value="onco">أورام ومناعة</option>
           <option value="vit">فيتامينات ومقويات</option>
+          <option value="derm">جلدية</option>
         </select>
         <select id="formFilter" class="filter-select">
           <option value="all">كل الأشكال الصيدلية</option>
@@ -304,7 +306,8 @@ body {
           <option value="نقط">نقط (Drops)</option>
           <option value="معلق">معلق فموي (Suspension)</option>
           <option value="لبوس">لبوس (Suppositories)</option>
-          <option value="فوار">فوار / أكياس</option>
+          <option value="فوار">فوار / أكياس (Sachets)</option>
+          <option value="بخاخ">بخاخ / استنشاق (Spray/Inhaler)</option>
         </select>
       </div>
     </div>
@@ -312,6 +315,13 @@ body {
     <!-- Drug Results List -->
     <div id="drugList">
       <div class="loading-state">جاري تحميل وتجهيز قاعدة بيانات الأدوية المصرية...</div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div id="paginationWrap" style="display:none; align-items:center; justify-content:center; gap:12px; margin-top:20px; padding:12px 0;">
+      <button id="prevPageBtn" class="btn" style="background:var(--surface-subtle); border:1px solid var(--border); color:var(--fg); padding:8px 16px; border-radius:10px; font-weight:600; cursor:pointer;" disabled>السابق ←</button>
+      <span id="pageIndicator" style="font-family:var(--font-mono); font-size:13px; font-weight:700; color:var(--muted);">صفحة 1 من 1</span>
+      <button id="nextPageBtn" class="btn" style="background:var(--accent); color:#fff; border:none; padding:8px 16px; border-radius:10px; font-weight:600; cursor:pointer;">التالي →</button>
     </div>
   </main>
 
@@ -348,40 +358,76 @@ window.addEventListener('DOMContentLoaded', () => {
   initDrugsPage();
 });
 
+let currentPage = 1;
+let totalPages = 1;
+const pageSize = 50;
+
 async function initDrugsPage() {
   const searchInput = document.getElementById('searchInput');
   const classFilter = document.getElementById('classFilter');
   const formFilter = document.getElementById('formFilter');
+  const prevBtn = document.getElementById('prevPageBtn');
+  const nextBtn = document.getElementById('nextPageBtn');
+  const paginationWrap = document.getElementById('paginationWrap');
+  const pageIndicator = document.getElementById('pageIndicator');
 
-  const fetchAndRender = async () => {
+  const fetchAndRender = async (page = 1) => {
+    currentPage = page;
     const q = searchInput.value.trim();
     const cls = classFilter.value;
     const form = formFilter.value;
 
     document.getElementById('drugList').innerHTML = '<div class="loading-state">جاري تحميل الأدوية من الخادم...</div>';
 
-    // Fetch from FastAPI
-    const data = await window.api.getDrugs(q, cls === 'all' ? '' : cls, form === 'all' ? '' : form, 1, 50);
+    // Fetch from FastAPI with active filters and page
+    const data = await window.api.getDrugs(q, cls === 'all' ? '' : cls, form === 'all' ? '' : form, currentPage, pageSize);
 
     renderDrugs(data.items);
     updateCount(data.total);
+
+    totalPages = data.pages || 1;
+    if (totalPages > 1) {
+      paginationWrap.style.display = 'flex';
+      pageIndicator.textContent = `صفحة ${currentPage} من ${totalPages}`;
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+    } else {
+      paginationWrap.style.display = 'none';
+    }
   };
 
+  // Reset to page 1 on filter or search change
+  const onFilterChange = () => fetchAndRender(1);
+
   // Initial load
-  await fetchAndRender();
+  await fetchAndRender(1);
 
   // Attach events
   if (typeof debounce === 'function') {
-    searchInput.addEventListener('input', debounce(fetchAndRender, 300));
+    searchInput.addEventListener('input', debounce(onFilterChange, 300));
   } else {
-    searchInput.addEventListener('input', fetchAndRender);
+    searchInput.addEventListener('input', onFilterChange);
   }
-  classFilter.addEventListener('change', fetchAndRender);
-  formFilter.addEventListener('change', fetchAndRender);
+  classFilter.addEventListener('change', onFilterChange);
+  formFilter.addEventListener('change', onFilterChange);
+
+  prevBtn.addEventListener('click', () => {
+    if (currentPage > 1) {
+      fetchAndRender(currentPage - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if (currentPage < totalPages) {
+      fetchAndRender(currentPage + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
 }
 
 function updateCount(count) {
-  document.getElementById('resultCount').textContent = `النتائج: ${count.toLocaleString('ar-EG')} صنف`;
+  document.getElementById('resultCount').textContent = `النتائج: ${(count || 0).toLocaleString('ar-EG')} صنف`;
 }
 
 function renderDrugs(drugs) {
@@ -407,7 +453,7 @@ function renderDrugs(drugs) {
             <div class="drug-trade-name">${escapeHtml(d.trade_en)}</div>
             <div class="drug-generic-name">${escapeHtml(d.generic_en || '')} • ${escapeHtml(d.strength || '')}</div>
           </div>
-          <div class="drug-badge">${escapeHtml(d.formAr || d.form || '')}</div>
+          <div class="drug-badge">${escapeHtml(d.form_ar || d.form || '')}</div>
         </a>
       `;
     });
