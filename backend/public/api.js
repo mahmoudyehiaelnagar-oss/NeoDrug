@@ -70,7 +70,7 @@ window.api = {
     const isMacrolide = has("clarithromycin", "klacid", "erythromycin");
 
     if (isNsaid && isWarfarin) {
-      alerts.append ? alerts.push("🛑 **تعارض شديد وخطير (مضادات التخثر + NSAID):** يضاعف خطر النزيف الهضمي الحاد وقرح المعدة.") : alerts.push("🛑 **تعارض شديد وخطير (مضادات التخثر + NSAID):** يضاعف خطر النزيف الهضمي الحاد وقرح المعدة.");
+      alerts.push("🛑 **تعارض شديد وخطير (مضادات التخثر + NSAID):** يضاعف خطر النزيف الهضمي الحاد وقرح المعدة.");
     }
     if (isNsaid && isAspirin) {
       alerts.push("🛑 **تعارض شديد (Aspirin + NSAID):** زيادة حادة في احتمالية النزيف المعدي وتثبيط مفعول الأسبرين الوقائي.");
@@ -137,62 +137,64 @@ window.api = {
       console.warn("Backend chat failed, falling back to direct Groq inference:", e);
     }
 
-    // 2. Direct high-speed Groq API fallback (works from any browser)
-    const groqKey = localStorage.getItem("GROQ_API_KEY") || DEFAULT_GROQ_KEY;
-    try {
-      const systemPrompt = isDual
-        ? "أنت استشاري الصيدلة الإكلينيكية وتعديل الجرعات الدوائية لتطبيق Neo Drug. قم بفحص صورة الروشتة وصورة التحليل معاً: 1- استخراج الأدوية والجرعات من الروشتة. 2- قراءة وتفسير نتائج التحاليل المخبرية. 3- تقييم دقة الجرعات والتنبيه الصريح في حال وجود خطأ في الجرعة المكتوبة بناءً على وظائف الكلى أو الكبد أو السكر أو السيولة مع تحديد الجرعة الصحيحة المعدلة (Dose Adjustment) والبدائل الآمنة للمريض."
-        : "أنت المساعد الطبي والذكاء الاصطناعي الإكلينيكي المعتمد لتطبيق Neo Drug (دليل الأدوية المصري). قدم استشارات صيدلانية دقيقة وموثوقة، واشرح دواعي الاستعمال والجرعات والبدائل المتاحة في السوق المصري، ونبه دائماً على ضرورة استشارة الطبيب في الحالات الطارئة.";
+    // 2. Direct high-speed Groq API fallback (works only if user provides a valid key)
+    const groqKey = (localStorage.getItem("GROQ_API_KEY") || DEFAULT_GROQ_KEY || "").trim();
+    if (groqKey) {
+      try {
+        const systemPrompt = isDual
+          ? "أنت استشاري الصيدلة الإكلينيكية وتعديل الجرعات الدوائية لتطبيق Neo Drug. قم بفحص صورة الروشتة وصورة التحليل معاً: 1- استخراج الأدوية والجرعات من الروشتة. 2- قراءة وتفسير نتائج التحاليل المخبرية. 3- تقييم دقة الجرعات والتنبيه الصريح في حال وجود خطأ في الجرعة المكتوبة بناءً على وظائف الكلى أو الكبد أو السكر أو السيولة مع تحديد الجرعة الصحيحة المعدلة (Dose Adjustment) والبدائل الآمنة للمريض."
+          : "أنت المساعد الطبي والذكاء الاصطناعي الإكلينيكي المعتمد لتطبيق Neo Drug (دليل الأدوية المصري). قدم استشارات صيدلانية دقيقة وموثوقة، واشرح دواعي الاستعمال والجرعات والبدائل المتاحة في السوق المصري، ونبه دائماً على ضرورة استشارة الطبيب في الحالات الطارئة.";
 
-      const messages = [{ role: "system", content: systemPrompt }];
+        const messages = [{ role: "system", content: systemPrompt }];
 
-      if (history && history.length > 0) {
-        history.slice(-6).forEach(h => {
-          messages.push({
-            role: h.role,
-            content: typeof h.content === "string" ? h.content : JSON.stringify(h.content)
+        if (history && history.length > 0) {
+          history.slice(-6).forEach(h => {
+            messages.push({
+              role: h.role,
+              content: typeof h.content === "string" ? h.content : JSON.stringify(h.content)
+            });
           });
-        });
-      }
-
-      if (hasImages) {
-        const userContent = [
-          { type: "text", text: message || (isDual ? "يرجى مطابقة الروشتة مع التحليل وتدقيق الجرعات وتعديل أي جرعة خاطئة" : "يرجى قراءة هذه الصورة واستخراج الأدوية والجرعات") }
-        ];
-        imagesList.forEach(img => {
-          const cleanB64 = img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}`;
-          userContent.push({
-            type: "image_url",
-            image_url: { url: cleanB64 }
-          });
-        });
-        messages.push({ role: "user", content: userContent });
-      } else {
-        messages.push({ role: "user", content: message });
-      }
-
-      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${groqKey}`
-        },
-        body: JSON.stringify({
-          model: hasImages ? "meta-llama/llama-4-scout-17b-vision" : "llama-3.3-70b-versatile",
-          messages: messages,
-          max_tokens: isDual ? 2000 : 1500
-        })
-      });
-
-      if (groqRes.ok) {
-        const groqData = await groqRes.json();
-        const reply = groqData.choices?.[0]?.message?.content;
-        if (reply) {
-          return { text: reply, isTruncated: false };
         }
+
+        if (hasImages) {
+          const userContent = [
+            { type: "text", text: message || (isDual ? "يرجى مطابقة الروشتة مع التحليل وتدقيق الجرعات وتعديل أي جرعة خاطئة" : "يرجى قراءة هذه الصورة واستخراج الأدوية والجرعات") }
+          ];
+          imagesList.forEach(img => {
+            const cleanB64 = img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}`;
+            userContent.push({
+              type: "image_url",
+              image_url: { url: cleanB64 }
+            });
+          });
+          messages.push({ role: "user", content: userContent });
+        } else {
+          messages.push({ role: "user", content: message });
+        }
+
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${groqKey}`
+          },
+          body: JSON.stringify({
+            model: hasImages ? "meta-llama/llama-4-scout-17b-vision" : "llama-3.3-70b-versatile",
+            messages: messages,
+            max_tokens: isDual ? 2000 : 1500
+          })
+        });
+
+        if (groqRes.ok) {
+          const groqData = await groqRes.json();
+          const reply = groqData.choices?.[0]?.message?.content;
+          if (reply) {
+            return { text: reply, isTruncated: false };
+          }
+        }
+      } catch (err) {
+        console.warn("Direct Groq API failed:", err);
       }
-    } catch (err) {
-      console.warn("Direct Groq API failed:", err);
     }
 
     // 3. Clinical fallback

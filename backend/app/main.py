@@ -225,7 +225,8 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
         parts.append({"text": prompt})
         if all_images:
             for img in all_images:
-                clean_b64 = img.split(",", 1)[1] if "," in img else img
+                # Safe regex-based data URI extraction
+                clean_b64 = re.sub(r'^data:image\/[a-zA-Z0-9\.\+_\-]+;base64,', '', str(img).strip())
                 parts.append({
                     "inline_data": {
                         "mime_type": "image/jpeg",
@@ -234,13 +235,13 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 })
         payload = json.dumps({"contents": [{"parts": parts}]}).encode('utf-8')
 
-        # Try multiple supported models in order of capability/speed
-        models_to_try = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash-image", "gemini-1.5-flash"]
+        # Try supported models with fast timeout (8s) to prevent Vercel 504 serverless timeouts
+        models_to_try = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash-image"]
         for m in models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
             try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
+                with urllib.request.urlopen(req, timeout=8) as resp:
                     res_data = json.loads(resp.read().decode('utf-8'))
                     return res_data['candidates'][0]['content']['parts'][0]['text']
             except Exception as e:
@@ -480,23 +481,20 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
     # Detect dual prescription + lab test correlation mode
     is_dual_audit = (req.prescription_image and req.lab_image) or len(images) >= 2
 
-    # Drug context search in database
+    # Optimized single-query drug context search
     db_context = ""
-    words = [w for w in re.split(r'[\s,\.،]+', msg) if len(w) > 2]
-    matched_drugs = []
-    for w in words[:6]:
-        found = db.query(models.Drug).filter(
-            or_(
+    words = [w for w in re.split(r'[\s,\.،]+', msg) if len(w) > 2][:6]
+    if words:
+        search_filters = []
+        for w in words:
+            search_filters.extend([
                 models.Drug.trade_en.ilike(f"%{w}%"),
                 models.Drug.generic_en.ilike(f"%{w}%"),
                 models.Drug.generic_ar.ilike(f"%{w}%")
-            )
-        ).limit(3).all()
-        for fd in found:
-            if fd not in matched_drugs:
-                matched_drugs.append(fd)
-        if len(matched_drugs) >= 5:
-            break
+            ])
+        matched_drugs = db.query(models.Drug).filter(or_(*search_filters)).limit(5).all()
+    else:
+        matched_drugs = []
 
     if matched_drugs:
         drug_summaries = []
