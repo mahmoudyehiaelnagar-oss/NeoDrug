@@ -219,8 +219,6 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
             print("Router call error:", e)
 
     elif api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
-        # Use cutting-edge gemini-3.5-flash which is widely supported by Google API
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         parts = []
         if system_prompt:
             parts.append({"text": f"تعليمات النظام:\n{system_prompt}\n\n"})
@@ -235,13 +233,19 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                     }
                 })
         payload = json.dumps({"contents": [{"parts": parts}]}).encode('utf-8')
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                res_data = json.loads(resp.read().decode('utf-8'))
-                return res_data['candidates'][0]['content']['parts'][0]['text']
-        except Exception as e:
-            print("Gemini REST error:", e)
+
+        # Try multiple supported models in order of capability/speed
+        models_to_try = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash-image", "gemini-1.5-flash"]
+        for m in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    res_data = json.loads(resp.read().decode('utf-8'))
+                    return res_data['candidates'][0]['content']['parts'][0]['text']
+            except Exception as e:
+                print(f"Gemini REST error ({m}):", e)
+                continue
 
     return None
 
