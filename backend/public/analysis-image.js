@@ -40,35 +40,26 @@ function compressImage(file, maxDimension = 2048, quality = 0.92) {
 }
 
 async function callAI(promptText, dataUrl) {
-  let OPENROUTER_KEY = localStorage.getItem('OPENROUTER_KEY');
-  if (!OPENROUTER_KEY) {
-    OPENROUTER_KEY = prompt('Please enter OpenRouter API Key for analysis:');
-    if (OPENROUTER_KEY) localStorage.setItem('OPENROUTER_KEY', OPENROUTER_KEY);
-  }
-  const url = 'https://openrouter.ai/api/v1/chat/completions';
+  const url = '/api/chat';
 
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENROUTER_KEY}`
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'google/gemini-3.5-flash-lite',
-      max_tokens: 1800,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: promptText },
-          { type: 'image_url', image_url: { url: dataUrl } }
-        ]
-      }]
+      message: promptText,
+      image_base64: dataUrl,
+      images: [dataUrl]
     })
   });
 
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content?.trim() || 'لم يتم استخراج معلومات من الروشتة.';
+  return data.reply || 'لم يتم استخراج معلومات من الروشتة.';
 }
 
 document.addEventListener('DOMContentLoaded', () => {

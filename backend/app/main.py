@@ -235,15 +235,20 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 })
         payload = json.dumps({"contents": [{"parts": parts}]}).encode('utf-8')
 
-        # Try supported models with fast timeout (8s) to prevent Vercel 504 serverless timeouts
-        models_to_try = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash-image"]
+        # Use the ultra-fast, verified gemini-3.5-flash-lite model with multi-part text extraction
+        models_to_try = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
         for m in models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
             try:
-                with urllib.request.urlopen(req, timeout=8) as resp:
+                with urllib.request.urlopen(req, timeout=12) as resp:
                     res_data = json.loads(resp.read().decode('utf-8'))
-                    return res_data['candidates'][0]['content']['parts'][0]['text']
+                    candidates = res_data.get('candidates', [])
+                    if candidates and 'content' in candidates[0] and 'parts' in candidates[0]['content']:
+                        p_list = candidates[0]['content']['parts']
+                        extracted_text = "".join([p.get('text', '') for p in p_list if 'text' in p]).strip()
+                        if extracted_text:
+                            return extracted_text
             except Exception as e:
                 print(f"Gemini REST error ({m}):", e)
                 continue
