@@ -220,7 +220,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
 
     elif api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
         # Use cutting-edge gemini-3.5-flash which is widely supported by Google API
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         parts = []
         if system_prompt:
             parts.append({"text": f"تعليمات النظام:\n{system_prompt}\n\n"})
