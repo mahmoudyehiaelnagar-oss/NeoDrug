@@ -102,7 +102,7 @@ def get_api_key(request: Request = None) -> str:
     part2 = "XhUrDaqtyzpAwaz4CNdYHx55cA"
     return part1 + part2
 
-def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, request: Request = None, image_base64: str = None, images: list = None) -> str:
+def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, request: Request = None, image_base64: str = None, images: list = None, history: list = None) -> str:
     api_key = get_api_key(request)
     if not api_key:
         return None
@@ -123,6 +123,16 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
+
+        if history:
+            for h in history:
+                r = "assistant" if h.get("role") in ("model", "assistant") else "user"
+                c = h.get("content", "")
+                if isinstance(c, list):
+                    txt_parts = [p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text"]
+                    c = " ".join(txt_parts).strip()
+                if c:
+                    messages.append({"role": r, "content": str(c)})
 
         if all_images:
             user_content = [{"type": "text", "text": prompt}]
@@ -181,6 +191,16 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 
+        if history:
+            for h in history:
+                r = "assistant" if h.get("role") in ("model", "assistant") else "user"
+                c = h.get("content", "")
+                if isinstance(c, list):
+                    txt_parts = [p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text"]
+                    c = " ".join(txt_parts).strip()
+                if c:
+                    messages.append({"role": r, "content": str(c)})
+
         if all_images:
             user_content = [{"type": "text", "text": prompt}]
             for img in all_images:
@@ -219,21 +239,53 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
             print("Router call error:", e)
 
     elif api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
-        parts = []
-        if system_prompt:
-            parts.append({"text": f"تعليمات النظام:\n{system_prompt}\n\n"})
-        parts.append({"text": prompt})
+        contents = []
+        if history:
+            for item in history:
+                r_name = item.get("role")
+                if r_name == "system":
+                    continue
+                role = "model" if r_name in ("model", "assistant") else "user"
+                raw_c = item.get("content", "")
+                if isinstance(raw_c, list):
+                    txt_parts = [p.get("text", "") for p in raw_c if isinstance(p, dict) and p.get("type") == "text"]
+                    c_text = " ".join(txt_parts).strip()
+                else:
+                    c_text = str(raw_c).strip()
+                if c_text:
+                    contents.append({
+                        "role": role,
+                        "parts": [{"text": c_text}]
+                    })
+
+        current_parts = []
+        if prompt:
+            current_parts.append({"text": prompt})
         if all_images:
             for img in all_images:
-                # Safe regex-based data URI extraction
                 clean_b64 = re.sub(r'^data:image\/[a-zA-Z0-9\.\+_\-]+;base64,', '', str(img).strip())
-                parts.append({
+                current_parts.append({
                     "inline_data": {
                         "mime_type": "image/jpeg",
                         "data": clean_b64
                     }
                 })
-        payload = json.dumps({"contents": [{"parts": parts}]}).encode('utf-8')
+
+        if not current_parts:
+            current_parts.append({"text": "مرحباً"})
+
+        contents.append({
+            "role": "user",
+            "parts": current_parts
+        })
+
+        req_dict = {"contents": contents}
+        if system_prompt:
+            req_dict["system_instruction"] = {
+                "parts": [{"text": system_prompt}]
+            }
+
+        payload = json.dumps(req_dict).encode('utf-8')
 
         # Use the ultra-fast, verified gemini-3.5-flash-lite model with multi-part text extraction
         models_to_try = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
@@ -550,7 +602,8 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
         system_prompt=system_prompt,
         max_tokens=2200,
         request=request,
-        images=images
+        images=images,
+        history=req.history
     )
 
     if not reply:

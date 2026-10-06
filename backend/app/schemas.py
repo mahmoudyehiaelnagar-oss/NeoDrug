@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 
 class DrugBase(BaseModel):
     trade_en: Optional[str] = None
@@ -36,6 +36,7 @@ class ChatRequest(BaseModel):
     images: Optional[List[str]] = []
     prescription_image: Optional[str] = None
     lab_image: Optional[str] = None
+    history: Optional[List[Dict[str, Any]]] = []
 
 class InteractionRequest(BaseModel):
     drugs: List[str]

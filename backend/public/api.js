@@ -114,7 +114,7 @@ window.api = {
     const hasImages = imagesList.length > 0;
     const isDual = imagesList.length >= 2 || (prescriptionImg && labImg);
 
-    // 1. Try calling the backend /api/chat
+    // 1. Try calling the backend /api/chat with full multi-turn conversation memory
     try {
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
@@ -124,7 +124,8 @@ window.api = {
           image_base64: imagesList[0] || null,
           images: imagesList,
           prescription_image: prescriptionImg,
-          lab_image: labImg
+          lab_image: labImg,
+          history: history || []
         })
       });
       if (res.ok) {
