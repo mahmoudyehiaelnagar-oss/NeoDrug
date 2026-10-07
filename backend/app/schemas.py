@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
+from datetime import datetime
 
 class DrugBase(BaseModel):
     trade_en: Optional[str] = None
@@ -40,3 +41,48 @@ class ChatRequest(BaseModel):
 
 class InteractionRequest(BaseModel):
     drugs: List[str]
+
+# --- Auth and Subscription Schemas ---
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    username: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UserProfileResponse(BaseModel):
+    id: int
+    email: str
+    username: Optional[str] = None
+    tier: str
+    is_pro: bool
+    pro_expires_at: Optional[datetime] = None
+    days_left: Optional[int] = None
+    ai_queries_used: int = 0
+    ai_queries_limit: int = 5
+    single_ocr_used: int = 0
+    single_ocr_limit: int = 1
+    dual_ocr_used: int = 0
+    dual_ocr_limit: int = 0
+    is_unlimited: bool = False
+
+    class Config:
+        from_attributes = True
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserProfileResponse
+    message: str
+
+class RedeemRequest(BaseModel):
+    code: str
+
+class RedeemResponse(BaseModel):
+    success: bool
+    message: str
+    tier: str
+    duration_days: int
+    pro_expires_at: Optional[datetime] = None

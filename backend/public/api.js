@@ -2,6 +2,88 @@ const API_BASE = "/api";
 const DEFAULT_GROQ_KEY = "";
 
 window.api = {
+  getAuthToken() {
+    return localStorage.getItem("NEO_AUTH_TOKEN") || "";
+  },
+
+  setAuthToken(token) {
+    if (token) {
+      localStorage.setItem("NEO_AUTH_TOKEN", token);
+    } else {
+      localStorage.removeItem("NEO_AUTH_TOKEN");
+    }
+  },
+
+  getAuthHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const token = this.getAuthToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const apiKey = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GROQ_API_KEY') || DEFAULT_GROQ_KEY;
+    if (apiKey) {
+      headers["x-api-key"] = apiKey;
+      headers["x-gemini-key"] = apiKey;
+    }
+    return headers;
+  },
+
+  async register(email, password, username = "") {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, username })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "فشل إنشاء الحساب");
+    if (data.token) this.setAuthToken(data.token);
+    return data;
+  },
+
+  async login(email, password) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "فشل تسجيل الدخول");
+    if (data.token) this.setAuthToken(data.token);
+    return data;
+  },
+
+  async getMe() {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: this.getAuthHeaders()
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      console.warn("Error fetching user profile:", e);
+      return null;
+    }
+  },
+
+  async redeemPromo(code) {
+    const res = await fetch(`${API_BASE}/promo/redeem`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ code: (code || "").trim() })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "فشل تفعيل الكود الترويجي");
+    return data;
+  },
+
+  logout() {
+    this.setAuthToken(null);
+    localStorage.removeItem("NEO_USER_PROFILE");
+    if (window.authPro && typeof window.authPro.updateUserUI === "function") {
+      window.authPro.updateUserUI(null);
+    }
+  },
+
   async getDrugs(q = "", cls = "all", form = "all", page = 1, size = 50) {
     const params = new URLSearchParams();
     if (q) params.append("q", q);
@@ -11,7 +93,9 @@ window.api = {
     params.append("size", size);
 
     try {
-      const res = await fetch(`${API_BASE}/drugs?${params.toString()}`);
+      const res = await fetch(`${API_BASE}/drugs?${params.toString()}`, {
+        headers: this.getAuthHeaders()
+      });
       if (!res.ok) throw new Error("Network response was not ok");
       return await res.json();
     } catch (e) {
@@ -22,13 +106,9 @@ window.api = {
 
   async getDrugDetail(tradeName) {
     try {
-      const apiKey = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GROQ_API_KEY') || DEFAULT_GROQ_KEY;
-      const headers = {};
-      if (apiKey) {
-        headers["x-api-key"] = apiKey;
-        headers["x-gemini-key"] = apiKey;
-      }
-      const res = await fetch(`${API_BASE}/drugs/${encodeURIComponent(tradeName)}`, { headers });
+      const res = await fetch(`${API_BASE}/drugs/${encodeURIComponent(tradeName)}`, {
+        headers: this.getAuthHeaders()
+      });
       if (!res.ok) throw new Error("Drug not found");
       return await res.json();
     } catch (e) {
@@ -41,9 +121,7 @@ window.api = {
     try {
       const res = await fetch(`${API_BASE}/check_interaction`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ drugs: drugsArray })
       });
       if (res.ok) {
@@ -56,7 +134,6 @@ window.api = {
     // Client-side offline fallback interaction engine
     const text = drugsArray.join(" ").toLowerCase();
     const alerts = [];
-
     const has = (...terms) => terms.some(t => text.includes(t.toLowerCase()));
 
     const isNsaid = has("ibuprofen", "brufen", "diclofenac", "cataflam", "voltaren", "ketoprofen", "ketofan", "naproxen", "piroxicam");
@@ -111,14 +188,13 @@ window.api = {
       imagesList = [imagesInput.trim()];
     }
 
-    const hasImages = imagesList.length > 0;
     const isDual = imagesList.length >= 2 || (prescriptionImg && labImg);
 
-    // 1. Try calling the backend /api/chat with full multi-turn conversation memory
+    // 1. Try calling the backend /api/chat with full multi-turn conversation memory and Auth Token
     try {
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           message: message || "",
           image_base64: imagesList[0] || null,
@@ -128,6 +204,19 @@ window.api = {
           history: history || []
         })
       });
+
+      if (res.status === 403) {
+        const errorData = await res.json();
+        // Trigger CapCut Pro style paywall modal
+        if (window.authPro && typeof window.authPro.openPaywall === "function") {
+          window.authPro.openPaywall(errorData.detail?.feature || (isDual ? "dual_ocr" : "limit"), errorData.detail?.message);
+        }
+        return {
+          text: `👑 **ميزة حصرية لـ Neo PRO:**\n${errorData.detail?.message || "لقد استنفدت الحد اليومي المجاني. قم بالترقية لـ PRO للاستخدام غير المحدود."}\n\n✨ [اضغط هنا للترقية وتفعيل باقة PRO مجاناً بالكود الترويجي](#pro)`,
+          isTruncated: false
+        };
+      }
+
       if (res.ok) {
         const data = await res.json();
         if (data.reply) {
@@ -157,7 +246,7 @@ window.api = {
           });
         }
 
-        if (hasImages) {
+        if (imagesList.length > 0) {
           const userContent = [
             { type: "text", text: message || (isDual ? "يرجى مطابقة الروشتة مع التحليل وتدقيق الجرعات وتعديل أي جرعة خاطئة" : "يرجى قراءة هذه الصورة واستخراج الأدوية والجرعات") }
           ];
@@ -180,7 +269,7 @@ window.api = {
             "Authorization": `Bearer ${groqKey}`
           },
           body: JSON.stringify({
-            model: hasImages ? "meta-llama/llama-4-scout-17b-vision" : "llama-3.3-70b-versatile",
+            model: imagesList.length > 0 ? "meta-llama/llama-4-scout-17b-vision" : "llama-3.3-70b-versatile",
             messages: messages,
             max_tokens: isDual ? 2000 : 1500
           })

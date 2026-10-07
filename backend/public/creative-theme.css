@@ -421,3 +421,329 @@ button:active,
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(13, 148, 136, 0.7);
 }
+
+/* ==========================================================================
+   Neo Drug PRO & CapCut Pro-Style Glassmorphic Paywall & Auth UI System
+   ========================================================================== */
+
+@keyframes goldShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulseGlowGold {
+  0%, 100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.35), 0 0 20px rgba(217, 119, 6, 0.2); }
+  50% { box-shadow: 0 0 22px rgba(245, 158, 11, 0.65), 0 0 35px rgba(6, 182, 212, 0.35); }
+}
+
+.pro-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  text-decoration: none;
+}
+
+.pro-badge-free {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(6, 182, 212, 0.12)) !important;
+  border: 1px solid rgba(13, 148, 136, 0.35) !important;
+  color: #0f766e !important;
+}
+.pro-badge-free:hover {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.22), rgba(6, 182, 212, 0.25)) !important;
+  transform: translateY(-2px) !important;
+}
+
+.pro-badge-active {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24, #06b6d4) !important;
+  background-size: 200% auto !important;
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  border: 1px solid #fbbf24 !important;
+  animation: goldShimmer 4s linear infinite, pulseGlowGold 3s ease-in-out infinite !important;
+}
+
+/* Modal Backdrop */
+.pro-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.pro-modal-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Modal Card */
+.pro-modal-card {
+  width: 100%;
+  max-width: 500px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 28px;
+  box-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.35), 0 0 40px rgba(245, 158, 11, 0.15);
+  overflow: hidden;
+  position: relative;
+  transform: scale(0.95) translateY(10px);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  direction: rtl;
+  color: #0f172a;
+}
+
+.pro-modal-backdrop.active .pro-modal-card {
+  transform: scale(1) translateY(0);
+}
+
+/* Modal Header */
+.pro-modal-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 24px 20px 20px;
+  position: relative;
+  text-align: center;
+  color: #fff;
+  overflow: hidden;
+}
+
+.pro-modal-header::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, rgba(6, 182, 212, 0.15) 50%, transparent 70%);
+  pointer-events: none;
+}
+
+.pro-modal-title {
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b, #38bdf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.pro-modal-subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  position: relative;
+  z-index: 1;
+  line-height: 1.5;
+}
+
+.pro-modal-close {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 10;
+  transition: 0.15s;
+}
+.pro-modal-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.1);
+}
+
+/* Modal Tabs */
+.pro-nav-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 14px;
+  margin: 16px 20px 0;
+  gap: 4px;
+}
+
+.pro-nav-tab {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pro-nav-tab.active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  font-weight: 700;
+}
+
+/* Plan Cards */
+.pro-plans-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 16px 20px 0;
+}
+
+.pro-plan-card {
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  background: #f8fafc;
+}
+
+.pro-plan-card.selected {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.18);
+}
+
+.pro-plan-tag {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.5px;
+}
+
+.pro-plan-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.pro-plan-price {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 800;
+  color: #d97706;
+}
+
+.pro-plan-cycle {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Feature Matrix List */
+.pro-features-list {
+  padding: 16px 20px;
+}
+
+.pro-feature-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12.5px;
+}
+
+.pro-feature-item:last-child {
+  border-bottom: none;
+}
+
+.pro-feature-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pro-feature-val {
+  font-weight: 700;
+  font-size: 11.5px;
+  color: #0d9488;
+}
+
+.pro-feature-val.pro-highlight {
+  color: #d97706;
+  background: #fef3c7;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Promo Chips */
+.promo-chips-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 10px 0 14px;
+}
+
+.promo-chip {
+  background: #f8fafc;
+  border: 1px dashed #0284c7;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #0284c7;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.promo-chip:hover {
+  background: #e0f2fe;
+  transform: translateY(-1px);
+}
+
+/* Pro CTA Button */
+.btn-pro-cta {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f59e0b, #d97706, #0284c7) !important;
+  color: #fff !important;
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-pro-cta:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.6) !important;
+}
+

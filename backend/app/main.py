@@ -7,12 +7,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 import os
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 from sqlalchemy import or_
 
-from . import models, schemas
+from . import models, schemas, auth, limiter
 from .database import engine, get_db
 
-# models.Base.metadata.create_all(bind=engine)
+# Create any missing tables safely without touching existing drugs table
+models.Base.metadata.create_all(bind=engine)
+
+# Seed default promo codes
+try:
+    with next(get_db()) as db_session:
+        limiter.seed_default_promo_codes(db_session)
+except Exception as _e:
+    pass
 
 app = FastAPI(title="Neo Drug API")
 
@@ -559,10 +568,219 @@ def check_interaction(req: schemas.InteractionRequest, request: Request, db: Ses
         "drugs": drug_details
     }
 
+# --- Authentication & Subscription APIs ---
+
+@app.post("/api/auth/register", response_model=schemas.AuthResponse)
+def register(req: schemas.RegisterRequest, db: Session = Depends(get_db)):
+    email_clean = req.email.strip().lower()
+    if not email_clean or "@" not in email_clean:
+        raise HTTPException(status_code=400, detail="يرجى إدخال بريد إلكتروني صحيح.")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن لا تقل عن 6 أحرف.")
+
+    existing_user = db.query(models.User).filter(models.User.email == email_clean).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.")
+
+    username_clean = req.username.strip() if req.username else email_clean.split("@")[0]
+    pwd_hash = auth.hash_password(req.password)
+
+    new_user = models.User(
+        email=email_clean,
+        username=username_clean,
+        password_hash=pwd_hash,
+        tier="free"
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    token = auth.create_jwt_token({
+        "sub": new_user.id,
+        "email": new_user.email,
+        "username": new_user.username,
+        "tier": new_user.tier
+    })
+
+    user_profile = schemas.UserProfileResponse(
+        id=new_user.id,
+        email=new_user.email,
+        username=new_user.username,
+        tier=new_user.tier,
+        is_pro=False,
+        pro_expires_at=None,
+        days_left=0,
+        ai_queries_used=0,
+        ai_queries_limit=5,
+        single_ocr_used=0,
+        single_ocr_limit=1,
+        dual_ocr_used=0,
+        dual_ocr_limit=0,
+        is_unlimited=False
+    )
+    return {"token": token, "user": user_profile, "message": "تم إنشاء الحساب بنجاح!"}
+
+@app.post("/api/auth/login", response_model=schemas.AuthResponse)
+def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
+    email_clean = req.email.strip().lower()
+    user = db.query(models.User).filter(models.User.email == email_clean).first()
+    if not user or not auth.verify_password(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
+
+    is_pro = False
+    days_left = 0
+    if user.tier == "pro":
+        if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
+            is_pro = True
+            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
+        else:
+            user.tier = "free"
+            db.commit()
+
+    token = auth.create_jwt_token({
+        "sub": user.id,
+        "email": user.email,
+        "username": user.username,
+        "tier": user.tier
+    })
+
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    usage = db.query(models.UsageRecord).filter(
+        models.UsageRecord.user_id == user.id,
+        models.UsageRecord.date_str == today_str
+    ).first()
+
+    user_profile = schemas.UserProfileResponse(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        tier=user.tier,
+        is_pro=is_pro,
+        pro_expires_at=user.pro_expires_at,
+        days_left=days_left,
+        ai_queries_used=usage.ai_queries_count if usage else 0,
+        ai_queries_limit=5 if not is_pro else 999999,
+        single_ocr_used=usage.single_ocr_count if usage else 0,
+        single_ocr_limit=1 if not is_pro else 999999,
+        dual_ocr_used=usage.dual_ocr_count if usage else 0,
+        dual_ocr_limit=0 if not is_pro else 999999,
+        is_unlimited=is_pro
+    )
+    return {"token": token, "user": user_profile, "message": "تم تسجيل الدخول بنجاح!"}
+
+@app.get("/api/auth/me", response_model=schemas.UserProfileResponse)
+def get_me(request: Request, db: Session = Depends(get_db)):
+    client_ip = limiter.get_client_ip(request)
+    user = auth.get_current_user_optional(request, db)
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+
+    if user:
+        is_pro = user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > datetime.utcnow())
+        days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days) if (is_pro and user.pro_expires_at) else 0
+        usage = db.query(models.UsageRecord).filter(
+            models.UsageRecord.user_id == user.id,
+            models.UsageRecord.date_str == today_str
+        ).first()
+
+        return schemas.UserProfileResponse(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            tier=user.tier,
+            is_pro=is_pro,
+            pro_expires_at=user.pro_expires_at,
+            days_left=days_left,
+            ai_queries_used=usage.ai_queries_count if usage else 0,
+            ai_queries_limit=5 if not is_pro else 999999,
+            single_ocr_used=usage.single_ocr_count if usage else 0,
+            single_ocr_limit=1 if not is_pro else 999999,
+            dual_ocr_used=usage.dual_ocr_count if usage else 0,
+            dual_ocr_limit=0 if not is_pro else 999999,
+            is_unlimited=is_pro
+        )
+    else:
+        usage = db.query(models.UsageRecord).filter(
+            models.UsageRecord.client_ip == client_ip,
+            models.UsageRecord.date_str == today_str
+        ).first()
+        return schemas.UserProfileResponse(
+            id=0,
+            email="guest@neodrug.app",
+            username="زائر",
+            tier="free",
+            is_pro=False,
+            pro_expires_at=None,
+            days_left=0,
+            ai_queries_used=usage.ai_queries_count if usage else 0,
+            ai_queries_limit=5,
+            single_ocr_used=usage.single_ocr_count if usage else 0,
+            single_ocr_limit=1,
+            dual_ocr_used=usage.dual_ocr_count if usage else 0,
+            dual_ocr_limit=0,
+            is_unlimited=False
+        )
+
+@app.post("/api/promo/redeem", response_model=schemas.RedeemResponse)
+def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Depends(get_db)):
+    user = auth.get_current_user_required(request, db)
+    code_clean = req.code.strip().upper()
+    if not code_clean:
+        raise HTTPException(status_code=400, detail="يرجى إدخال كود التفعيل.")
+
+    promo = db.query(models.PromoCode).filter(
+        models.PromoCode.code == code_clean,
+        models.PromoCode.is_active == True
+    ).first()
+
+    if not promo:
+        raise HTTPException(status_code=404, detail="كود التفعيل غير صالح أو غير موجود.")
+
+    if promo.expires_at and promo.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="عذراً، هذا الكود الترويجي منتهي الصلاحية.")
+
+    if promo.max_uses and promo.used_count >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="تم الوصول إلى الحد الأقصى لاستخدام هذا الكود.")
+
+    already_redeemed = db.query(models.PromoRedemption).filter(
+        models.PromoRedemption.user_id == user.id,
+        models.PromoRedemption.promo_code_id == promo.id
+    ).first()
+    if already_redeemed:
+        raise HTTPException(status_code=400, detail="لقد قمت بتفعيل هذا الكود الترويجي مسبقاً على حسابك.")
+
+    now = datetime.utcnow()
+    if user.tier == "pro" and user.pro_expires_at and user.pro_expires_at > now:
+        user.pro_expires_at = user.pro_expires_at + timedelta(days=promo.duration_days)
+    else:
+        user.pro_expires_at = now + timedelta(days=promo.duration_days)
+
+    user.tier = "pro"
+    promo.used_count += 1
+
+    redemption = models.PromoRedemption(
+        user_id=user.id,
+        promo_code_id=promo.id,
+        code_used=code_clean,
+        redeemed_at=now
+    )
+    db.add(redemption)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "success": True,
+        "message": f"تم تفعيل اشتراك Neo PRO بنجاح لمدة {promo.duration_days} يوماً! استمتع بكافة المزايا غير المحدودة.",
+        "tier": "pro",
+        "duration_days": promo.duration_days,
+        "pro_expires_at": user.pro_expires_at
+    }
+
 @app.post("/api/chat")
 @app.post("/chat")
 def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depends(get_db)):
     msg = req.message.strip() if req.message else ""
+    client_ip = limiter.get_client_ip(request)
+    user = auth.get_current_user_optional(request, db)
 
     # Collect all images (single or dual: prescription + lab test)
     images = []
@@ -582,6 +800,22 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
 
     # Detect dual prescription + lab test correlation mode
     is_dual_audit = (req.prescription_image and req.lab_image) or len(images) >= 2
+    is_single_ocr = len(images) == 1 and not is_dual_audit
+
+    if is_dual_audit:
+        feature_type = "dual_ocr"
+    elif is_single_ocr:
+        feature_type = "single_ocr"
+    else:
+        feature_type = "ai_chat"
+
+    # Enforce Subscription & Usage Limits
+    allowed, limit_info = limiter.check_feature_access(db, user, feature_type, client_ip)
+    if not allowed:
+        raise HTTPException(status_code=403, detail=limit_info)
+
+    is_pro = (user and user.tier == "pro")
+    max_token_budget = 2500 if is_pro else 1800
 
     # Optimized single-query drug context search
     db_context = ""
@@ -632,7 +866,7 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
         user_prompt = msg if msg else "يرجى مطابقة الروشتة مع التحليل، تدقيق الجرعات، وتصحيح أي خطأ إكلينيكي فوراً."
     else:
         system_prompt = f"""
-أنت المساعد الطبي الذكي والصيدلي الإكلينيكي المعتمد لتطبيق Neo Drug (دليل الأدوية المصري - أكثر من 9,700 صنف).
+أنت المساعد الطبي الذكي والصيدلي الإكلينيكية المعتمد لتطبيق Neo Drug (دليل الأدوية المصري - أكثر من 9,700 صنف).
 مهمتك: مساعدة المرضى والصيادلة في معرفة معلومات الأدوية، المواد الفعالة، الجرعات، التفاعلات، البدائل المتوفرة في السوق المصري، وقراءة الروشتات الطبية بدقة.
 {db_context}
 القواعد الإكلينيكية:
@@ -645,7 +879,7 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
     reply = call_llm(
         prompt=user_prompt,
         system_prompt=system_prompt,
-        max_tokens=2200,
+        max_tokens=max_token_budget,
         request=request,
         images=images,
         history=req.history
@@ -653,8 +887,10 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
 
     if not reply:
         reply = "🩺 مرحباً بك في Neo Drug AI! للأسف أواجه ضغطاً مؤقتاً في معالجة الصور أو شبكة الذكاء الاصطناعي. يمكنك البحث عن أي دواء مباشرة في دليل الأدوية أو التأكد من وضوح الصور وإعادة المحاولة."
+    else:
+        limiter.record_feature_usage(db, user, feature_type, client_ip)
 
-    return {"reply": reply}
+    return {"reply": reply, "tier": "pro" if is_pro else "free", "feature": feature_type}
 
 # main.py is in backend/app/
 def get_public_dir():
