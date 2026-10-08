@@ -1,8 +1,9 @@
 /**
  * Neo Drug — Auth & CapCut Pro-Style Subscription Management Module
  * =================================================================
- * Provides global authentication, PRO paywall modal, WhatsApp activation (01070142811),
- * promo redemption, and top-bar status pill injection across all pages.
+ * Provides global authentication, official Google Sign-In (Gmail & One Tap),
+ * PRO paywall modal, WhatsApp activation (01070142811), promo redemption,
+ * and top-bar status pill injection across all pages.
  */
 
 (function() {
@@ -19,6 +20,7 @@
 
   const WHATSAPP_PHONE = '201070142811';
   const DISPLAY_PHONE = '01070142811';
+  const DEFAULT_GOOGLE_CLIENT_ID = '1027154210986-7aeq68s56qkncq7o0k1v3u0p7hqu223h.apps.googleusercontent.com';
 
   window.authPro = {
     getUser() {
@@ -35,6 +37,7 @@
       this.injectHeaderWidget();
       this.injectModal();
       this.updateUserUI(currentUser);
+      this.loadGoogleSDK();
 
       // 2. Asynchronously verify and refresh profile from backend if token exists
       if (window.api.getAuthToken()) {
@@ -47,6 +50,62 @@
         } catch (e) {
           console.warn('Could not refresh user profile:', e);
         }
+      }
+    },
+
+    loadGoogleSDK() {
+      if (document.getElementById('googleGsiScript')) return;
+      const script = document.createElement('script');
+      script.id = 'googleGsiScript';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        this.initGoogleGSI();
+      };
+      document.head.appendChild(script);
+    },
+
+    initGoogleGSI() {
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+
+      try {
+        const clientId = window.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response) => {
+            if (response && response.credential) {
+              this.handleGoogleCredential(response.credential);
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+
+        // Render button if container exists
+        const btnContainer = document.getElementById('googleGsiButtonContainer');
+        if (btnContainer) {
+          btnContainer.innerHTML = '';
+          window.google.accounts.id.renderButton(btnContainer, {
+            theme: 'outline',
+            size: 'large',
+            type: 'standard',
+            text: 'signin_with',
+            shape: 'pill',
+            logo_alignment: 'left',
+            width: 320,
+            locale: 'ar'
+          });
+        }
+
+        // Show Google One Tap if not logged in
+        if (!currentUser || !currentUser.email || currentUser.email === 'guest@neodrug.app') {
+          setTimeout(() => {
+            try { window.google.accounts.id.prompt(); } catch (e) {}
+          }, 1500);
+        }
+      } catch (err) {
+        console.warn('Google GSI initialization notice:', err);
       }
     },
 
@@ -98,8 +157,7 @@
           btn.innerHTML = `<span>👑 عضو PRO (${user.days_left > 1000 ? 'دائم ♾️' : user.days_left + ' يوم'})</span>`;
         } else {
           btn.className = 'pro-badge-pill pro-badge-free';
-          const remaining = Math.max(0, (user?.ai_queries_limit || 5) - (user?.ai_queries_used || 0));
-          btn.innerHTML = `<span>✨ ترقية PRO <small style="opacity:0.85">(${remaining} متبقي)</small></span>`;
+          btn.innerHTML = `<span>✨ ترقية لـ PRO 👑</span>`;
         }
       });
 
@@ -208,7 +266,7 @@
             </div>
           </div>
 
-          <!-- Tab 3: Account (Login & Register) -->
+          <!-- Tab 3: Account (Login & Register & Google Auth) -->
           <div id="tabContentAuth" class="pro-tab-content" style="display:none; padding: 20px;">
             <div id="userLoggedInView" style="display:none; text-align:right; padding: 4px 0;">
               <div style="background:var(--surface-subtle); border:1.5px solid var(--border); border-radius:18px; padding:18px; margin-bottom:16px;">
@@ -245,11 +303,14 @@
             </div>
 
             <div id="userAuthFormView">
-              <!-- Google 1-Click Sign-In Button -->
-              <div style="margin-bottom:14px;">
-                <button type="button" class="btn" style="width:100%; padding:10px 14px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; font-weight:700; font-size:13px; color:#1e293b; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.04); transition:0.15s;" onclick="window.authPro.signInWithGoogle()">
+              <!-- Official Google Sign-In Button Container -->
+              <div style="margin-bottom:12px; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <div id="googleGsiButtonContainer" style="width:100%; display:flex; justify-content:center;"></div>
+
+                <!-- Fallback Button if GSI button is loading or blocked -->
+                <button type="button" class="btn" style="width:100%; padding:10px 14px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; font-weight:700; font-size:13px; color:#1e293b; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.04); transition:0.15s;" onclick="window.authPro.signInWithGooglePrompt()">
                   <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
-                  <span>دخول سريع بحساب Google (Gmail) 🌐</span>
+                  <span>متابعة الدخول السريع بـ Google (Gmail)</span>
                 </button>
               </div>
 
@@ -294,6 +355,9 @@
       if (!backdrop) return;
       this.switchTab(tab);
       backdrop.classList.add('active');
+      if (tab === 'auth') {
+        this.initGoogleGSI();
+      }
     },
 
     openRedeem() {
@@ -334,6 +398,8 @@
           document.getElementById('userProfileExpiry').textContent = currentUser.is_pro
             ? (currentUser.days_left > 1000 ? 'وصول دائم مدى الحياة ♾️' : `متبقي ${currentUser.days_left} يوم`)
             : 'مقفلة (تتطلب تفعيل الاشتراك)';
+        } else {
+          this.initGoogleGSI();
         }
       }
     },
@@ -483,7 +549,51 @@
       }
     },
 
-    async signInWithGoogle() {
+    async handleGoogleCredential(credential) {
+      const msg = document.getElementById('authMsg');
+      if (msg) {
+        msg.style.display = 'block';
+        msg.style.color = '#0284c7';
+        msg.textContent = 'جاري تسجيل الدخول بحساب Google... ⏳';
+      }
+
+      try {
+        const res = await window.api.googleAuth(credential);
+        if (msg) {
+          msg.style.color = '#15803d';
+          msg.textContent = res.message || 'تم تسجيل الدخول بنجاح!';
+        }
+
+        if (res.user) {
+          currentUser = res.user;
+          this.updateUserUI(currentUser);
+        } else {
+          currentUser = await window.api.getMe();
+          this.updateUserUI(currentUser);
+        }
+
+        setTimeout(() => {
+          this.closeModal();
+        }, 600);
+      } catch (err) {
+        if (msg) {
+          msg.style.display = 'block';
+          msg.style.color = 'var(--danger)';
+          msg.textContent = err.message || 'فشل تسجيل الدخول بحساب Google.';
+        }
+      }
+    },
+
+    async signInWithGooglePrompt() {
+      // Try Google GSI prompt first
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          window.google.accounts.id.prompt();
+          return;
+        } catch (e) {}
+      }
+
+      // Fallback manual Gmail entry
       const email = prompt("أدخل بريدك الإلكتروني لحساب Google (Gmail):");
       if (!email || !email.trim()) return;
 
