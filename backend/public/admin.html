@@ -197,7 +197,7 @@ tr:hover td {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 20px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 </style>
 </head>
@@ -308,7 +308,7 @@ tr:hover td {
             <th>الباقة</th>
             <th>الصلاحية</th>
             <th>نشاط اليوم</th>
-            <th>التحكم والترقية</th>
+            <th>التحكم والترقية الفورية</th>
           </tr>
         </thead>
         <tbody id="usersTableBody">
@@ -320,12 +320,34 @@ tr:hover td {
 
   <!-- Tab 2: Promo Codes Generator -->
   <div id="tabPromosContent" class="tab-content" style="display: none;">
+
+    <!-- Fast 1-Click WhatsApp Code Generator -->
+    <div class="form-box" style="background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1.5px solid #86efac;">
+      <div style="font-size: 15px; font-weight: 800; margin-bottom: 6px; color: #166534;">⚡ توليد كود تفعيل فوري وإرساله لواتساب العميل:</div>
+      <p style="font-size: 12.5px; color: #15803d; margin-bottom: 12px;">اختر المدة وسيقوم النظام فوراً بتوليد كود تفعيل وتجهيز رسالة واتساب للعميل بضغطة واحدة:</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button class="btn btn-primary" style="background:#16a34a !important; font-weight:700; padding:9px 16px;" onclick="generateFastCode(30)">
+          + كود 30 يوم وإرسال لواتساب 💬
+        </button>
+        <button class="btn btn-primary" style="background:#0d9488 !important; font-weight:700; padding:9px 16px;" onclick="generateFastCode(90)">
+          + كود 90 يوم وإرسال لواتساب 👑
+        </button>
+        <button class="btn btn-primary" style="background:#0284c7 !important; font-weight:700; padding:9px 16px;" onclick="generateFastCode(365)">
+          + كود سنة وإرسال لواتساب 🌟
+        </button>
+        <button class="btn btn-primary" style="background:#475569 !important; font-weight:700; padding:9px 16px;" onclick="generateFastCode(36500)">
+          + كود مدى الحياة ♾️
+        </button>
+      </div>
+    </div>
+
+    <!-- Custom Promo Code Form -->
     <div class="form-box">
-      <div style="font-size: 14.5px; font-weight: 800; margin-bottom: 12px; color: #0f172a;">إنشاء كود تفعيل ترويجي جديد 🎁</div>
+      <div style="font-size: 14.5px; font-weight: 800; margin-bottom: 12px; color: #0f172a;">إنشاء كود تفعيل ترويجي مخصص 🎁</div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
         <div>
           <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">كود التفعيل (English/Upper):</label>
-          <input type="text" id="newPromoCode" placeholder="مثال: VIP2026" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase;">
+          <input type="text" id="newPromoCode" placeholder="مثال: CLINIC2026" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase;">
         </div>
         <div>
           <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">مدة الاشتراك (بالأيام):</label>
@@ -450,10 +472,10 @@ function renderUsersTable(users) {
       <td>${u.is_pro ? (u.days_left > 1000 ? 'مدى الحياة ♾️' : `${u.days_left} يوم متبقي`) : '-'}</td>
       <td style="font-family:var(--font-mono);">${u.today_ai_used + u.today_ocr_used} طلبات</td>
       <td>
-        <button class="action-btn btn-upgrade" title="ترقية لشهر" onclick="updateUser(${u.id}, 'pro', 30)">+ 30 يوم</button>
-        <button class="action-btn btn-upgrade" title="ترقية لسنة" onclick="updateUser(${u.id}, 'pro', 365)">+ سنة</button>
-        <button class="action-btn btn-upgrade" title="ترقية مدى الحياة" onclick="updateUser(${u.id}, 'pro', 36500)">♾️ دائم</button>
-        ${u.is_pro ? `<button class="action-btn btn-downgrade" onclick="updateUser(${u.id}, 'free')">إلغاء PRO</button>` : ''}
+        <button class="action-btn btn-upgrade" title="ترقية لشهر" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'pro', 30)">+ 30 يوم</button>
+        <button class="action-btn btn-upgrade" title="ترقية لسنة" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'pro', 365)">+ سنة</button>
+        <button class="action-btn btn-upgrade" title="ترقية مدى الحياة" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'pro', 36500)">♾️ دائم</button>
+        ${u.is_pro ? `<button class="action-btn btn-downgrade" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'free', 0)">إلغاء PRO</button>` : ''}
         <button class="action-btn" title="تغيير كلمة المرور" onclick="resetUserPassword(${u.id}, '${escapeHtml(u.email)}')">🔑 باسورد</button>
         <button class="action-btn btn-downgrade" title="حذف المستخدم نهائياً" onclick="deleteUser(${u.id}, '${escapeHtml(u.email)}')">🗑️ حذف</button>
       </td>
@@ -551,7 +573,7 @@ async function resetUserPassword(userId, email) {
   }
 }
 
-async function updateUser(userId, tier, days = 30) {
+async function updateUser(userId, email, tier, days = 30) {
   try {
     const res = await fetch('/api/admin/users/update-tier', {
       method: 'POST',
@@ -562,11 +584,46 @@ async function updateUser(userId, tier, days = 30) {
       body: JSON.stringify({ user_id: userId, tier: tier, duration_days: days })
     });
     const data = await res.json();
-    alert(data.message || 'تم التحديث بنجاح!');
+    if (!res.ok) throw new Error(data.detail || 'فشل الترقية');
+
+    if (tier === 'pro' && data.activation_code) {
+      const copyText = data.activation_code;
+      const sendWa = confirm(`🎉 تم ترقية حساب (${email}) بنجاح!\n\n• كود التفعيل المخصص: ${copyText}\n\nهل تود فتح واتساب لإرسال كود التفعيل ورسالة الترحيب للعميل؟`);
+      if (sendWa && data.whatsapp_message) {
+        window.open(`https://wa.me/?text=${encodeURIComponent(data.whatsapp_message)}`, '_blank');
+      }
+    } else {
+      alert(data.message || 'تم تحديث باقة المستخدم بنجاح!');
+    }
+
     loadUsers();
     initDashboard();
   } catch (e) {
-    alert('حدث خطأ: ' + e);
+    alert('حدث خطأ: ' + e.message);
+  }
+}
+
+async function generateFastCode(days = 30) {
+  try {
+    const res = await fetch('/api/admin/users/generate-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({ prefix: 'PRO', duration_days: days })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'فشل توليد الكود');
+
+    const send = confirm(`🎉 تم توليد كود التفعيل بنجاح!\n\n• الكود: ${data.code} (${data.duration_days} يوماً)\n\nهل تود فتح الواتساب لإرسال الكود للعميل فوراً؟`);
+    if (send) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(data.whatsapp_message)}`, '_blank');
+    }
+    loadPromos();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e.message);
   }
 }
 

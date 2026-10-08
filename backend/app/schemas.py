@@ -90,6 +90,17 @@ class RedeemResponse(BaseModel):
 
 # --- Admin Dashboard Schemas ---
 
+class AdminGenerateCodeRequest(BaseModel):
+    prefix: Optional[str] = "PRO"
+    duration_days: int = 30
+    user_email: Optional[str] = None
+
+class AdminGenerateCodeResponse(BaseModel):
+    code: str
+    duration_days: int
+    whatsapp_message: str
+    activation_url: str
+
 class AdminCreateUserRequest(BaseModel):
     email: str
     password: str
