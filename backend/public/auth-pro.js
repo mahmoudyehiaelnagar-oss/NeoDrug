@@ -177,19 +177,12 @@
           <!-- Tab 2: Promo / Gift Code Redemption -->
           <div id="tabContentRedeem" class="pro-tab-content" style="display:none; padding: 20px;">
             <div style="font-size:13.5px; font-weight:700; margin-bottom:6px; color:#0f172a;">هل تمتلك كود تفعيل ترويجي؟ 🎁</div>
-            <p style="font-size:12px; color:#64748b; line-height:1.5; margin-bottom:12px;">
-              أدخل كود الهدية أو كود التفعيل لتنشيط اشتراك Neo PRO مجاناً وفوراً:
+            <p style="font-size:12px; color:#64748b; line-height:1.5; margin-bottom:14px;">
+              أدخل كود الهدية أو كود الاشتراك الذي حصلت عليه لتنشيط باقة Neo PRO فوراً:
             </p>
 
-            <div style="margin-bottom:10px;">
-              <input type="text" id="promoCodeInput" placeholder="أدخل الكود هنا (مثال: NEOPRO)..." style="width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:12px; font-family:var(--font-mono); font-size:14px; font-weight:700; text-transform:uppercase; outline:none; box-sizing:border-box;">
-            </div>
-
-            <div style="font-size:11.5px; color:#64748b; margin-bottom:4px;">أكواد سريعة للتجربة:</div>
-            <div class="promo-chips-row">
-              <span class="promo-chip" onclick="window.authPro.fillPromo('NEOPRO')">⚡ NEOPRO (30 يوم)</span>
-              <span class="promo-chip" onclick="window.authPro.fillPromo('VIP2026')">👑 VIP2026 (90 يوم)</span>
-              <span class="promo-chip" onclick="window.authPro.fillPromo('PHARMA2026')">🩺 PHARMA2026 (سنة)</span>
+            <div style="margin-bottom:14px;">
+              <input type="text" id="promoCodeInput" placeholder="أدخل كود التفعيل الترويجي هنا..." style="width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:12px; font-family:var(--font-mono); font-size:14px; font-weight:700; text-transform:uppercase; outline:none; box-sizing:border-box;">
             </div>
 
             <div id="redeemMsg" style="font-size:12px; font-weight:600; margin-bottom:12px; display:none;"></div>
@@ -198,9 +191,9 @@
               تفعيل كود PRO الآن 🚀
             </button>
 
-            <div style="text-align:center; margin-top:14px;">
-              <a href="javascript:void(0)" onclick="window.authPro.openWhatsAppActivation()" style="font-size:12px; color:#16a34a; font-weight:700; text-decoration:none;">
-                💬 اطلب كود تفعيل خاص عبر واتساب (${DISPLAY_PHONE})
+            <div style="text-align:center; margin-top:16px;">
+              <a href="javascript:void(0)" onclick="window.authPro.openWhatsAppActivation()" style="font-size:12.5px; color:#16a34a; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                <span>💬</span> ليس لديك كود؟ اطلب اشتراكك عبر واتساب (${DISPLAY_PHONE})
               </a>
             </div>
           </div>
