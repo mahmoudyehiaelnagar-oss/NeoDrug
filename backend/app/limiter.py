@@ -5,9 +5,9 @@ from fastapi import Request
 from . import models
 
 FREE_LIMITS = {
-    "ai_chat": 5,
-    "single_ocr": 1,
-    "dual_ocr": 0
+    "ai_chat": 0,       # Locked for non-PRO subscribers
+    "single_ocr": 0,     # Locked for non-PRO subscribers
+    "dual_ocr": 0       # Locked for non-PRO subscribers
 }
 
 def get_client_ip(request: Request) -> str:
@@ -55,48 +55,27 @@ def get_or_create_usage(db: Session, user: Optional[models.User], client_ip: str
         return record
 
 def check_feature_access(db: Session, user: Optional[models.User], feature: str, client_ip: str) -> Tuple[bool, Dict[str, Any]]:
-    # 1. Check if user has active PRO
+    # 1. Check if user has active PRO subscription
     if user and user.tier == "pro":
         if not user.pro_expires_at or user.pro_expires_at > datetime.utcnow():
-            return True, {"tier": "pro", "unlimited": True}
+            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days) if user.pro_expires_at else 9999
+            return True, {"tier": "pro", "unlimited": True, "days_left": days_left}
         else:
             user.tier = "free"
             db.commit()
 
-    # 2. Check Free Tier usage limits
+    # 2. If not PRO or guest, lock features and require PRO activation
     usage = get_or_create_usage(db, user, client_ip)
 
-    if feature == "dual_ocr":
+    if feature in ("dual_ocr", "single_ocr", "ai_chat"):
         return False, {
             "error": "PRO_REQUIRED",
-            "feature": "dual_ocr",
-            "message": "فحص الروشتة مع التحاليل وتدقيق الجرعات ميزة حصرية لمشتركي Neo PRO.",
+            "feature": feature,
+            "message": "🔒 ميزات الذكاء الاصطناعي وقراءة الروشتات وتدقيق الجرعات مقفلة وتتطلب تفعيل اشتراك Neo Drug PRO.",
             "limit": 0,
-            "used": usage.dual_ocr_count,
+            "used": usage.ai_queries_count + usage.single_ocr_count + usage.dual_ocr_count,
             "upgrade_required": True
         }
-
-    elif feature == "single_ocr":
-        if usage.single_ocr_count >= FREE_LIMITS["single_ocr"]:
-            return False, {
-                "error": "LIMIT_REACHED",
-                "feature": "single_ocr",
-                "message": f"لقد استنفدت الحد اليومي المجاني لقراءة الروشتات ({FREE_LIMITS['single_ocr']} فحص يومياً). قم بالترقية لـ PRO للاستخدام غير المحدود.",
-                "limit": FREE_LIMITS["single_ocr"],
-                "used": usage.single_ocr_count,
-                "upgrade_required": True
-            }
-
-    elif feature == "ai_chat":
-        if usage.ai_queries_count >= FREE_LIMITS["ai_chat"]:
-            return False, {
-                "error": "LIMIT_REACHED",
-                "feature": "ai_chat",
-                "message": f"لقد استنفدت رصيدك اليومي المجاني ({FREE_LIMITS['ai_chat']} استشارات يومياً). قم بالترقية لـ PRO للاستخدام غير المحدود.",
-                "limit": FREE_LIMITS["ai_chat"],
-                "used": usage.ai_queries_count,
-                "upgrade_required": True
-            }
 
     return True, {"tier": "free", "unlimited": False}
 

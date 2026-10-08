@@ -200,17 +200,36 @@
 
           <!-- Tab 3: Account (Login & Register) -->
           <div id="tabContentAuth" class="pro-tab-content" style="display:none; padding: 20px;">
-            <div id="userLoggedInView" style="display:none; text-align:center; padding: 10px 0;">
-              <div style="font-size:36px; margin-bottom:8px;">👤</div>
-              <div id="userProfileEmail" style="font-weight:700; font-size:15px; margin-bottom:4px;"></div>
-              <div id="userProfileTier" style="font-size:12px; color:#0d9488; font-weight:700; margin-bottom:16px;"></div>
+            <div id="userLoggedInView" style="display:none; text-align:right; padding: 4px 0;">
+              <div style="background:var(--surface-subtle); border:1.5px solid var(--border); border-radius:18px; padding:18px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+                  <div style="font-size:14px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                    <span>👤</span> بيانات الحساب والاشتراك
+                  </div>
+                  <div id="userProfileBadge"></div>
+                </div>
 
-              <div style="margin-bottom:16px;">
-                <button class="btn btn-primary" style="padding:8px 16px; font-size:12.5px; margin-left:6px;" onclick="window.authPro.openWhatsAppActivation()">
-                  💬 تواصل مع الإدارة عبر واتساب
+                <div style="font-size:13px; color:#475569; margin-bottom:8px;">
+                  <strong>البريد الإلكتروني:</strong> <span id="userProfileEmail" style="font-family:var(--font-mono); font-weight:700; color:#0f172a;"></span>
+                </div>
+                <div style="font-size:13px; color:#475569; margin-bottom:8px;">
+                  <strong>نوع الباقة:</strong> <span id="userProfileTier" style="font-weight:700;"></span>
+                </div>
+                <div style="font-size:13px; color:#475569; margin-bottom:10px;">
+                  <strong>صلاحية الاشتراك:</strong> <span id="userProfileExpiry" style="font-weight:800; color:#0d9488;"></span>
+                </div>
+
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:8px 12px; font-size:11.5px; color:#166534; line-height:1.5;">
+                  ✓ حسابك مرتبط ويعمل على أي عدد من أجهزتك (الموبايل، التابلت، والكمبيوتر) في نفس الوقت بحرية تامة.
+                </div>
+              </div>
+
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary" style="flex:1; padding:10px; font-weight:700; font-size:13px;" onclick="window.authPro.openWhatsAppActivation()">
+                  💬 تجديد / ترقية عبر واتساب
                 </button>
-                <button class="btn" style="background:#fee2e2; color:#ef4444; border:none; padding:8px 16px; border-radius:10px; font-weight:700; cursor:pointer;" onclick="window.authPro.logout()">
-                  تسجيل الخروج ✕
+                <button class="btn" style="background:#fee2e2; color:#ef4444; border:none; padding:10px 16px; border-radius:10px; font-weight:700; cursor:pointer;" onclick="window.authPro.logout()">
+                  خروج ✕
                 </button>
               </div>
             </div>
@@ -283,8 +302,14 @@
         if (loggedIn) {
           document.getElementById('userProfileEmail').textContent = currentUser.email;
           document.getElementById('userProfileTier').textContent = currentUser.is_pro
-            ? `👑 عضوية PRO مفعلة (${currentUser.days_left > 1000 ? 'مدى الحياة ♾️' : currentUser.days_left + ' يوم متبقي'})`
-            : 'باقة مجانية (Free Tier)';
+            ? 'باقة المحترفين (Neo Drug PRO) 👑'
+            : 'باقة مجانية (Free Tier) 🔒';
+          document.getElementById('userProfileBadge').innerHTML = currentUser.is_pro
+            ? '<span class="badge-pro">PRO ACTIVE</span>'
+            : '<span class="badge-free">FREE</span>';
+          document.getElementById('userProfileExpiry').textContent = currentUser.is_pro
+            ? (currentUser.days_left > 1000 ? 'وصول دائم مدى الحياة ♾️' : `متبقي ${currentUser.days_left} يوم`)
+            : 'مقفلة (تتطلب تفعيل الاشتراك)';
         }
       }
     },

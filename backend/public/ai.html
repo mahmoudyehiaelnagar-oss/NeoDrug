@@ -679,6 +679,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const text = chatInput.value.trim();
     if (!text) return;
 
+    if (window.authPro && !window.authPro.isPro()) {
+      window.authPro.openPaywall('upgrade');
+      return;
+    }
+
     const userDiv = document.createElement('div');
     userDiv.className = 'msg user';
     userDiv.textContent = text;
@@ -707,6 +712,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const isPrescriptionOnly = selectedPrescriptionBase64 && !selectedLabBase64;
     const isLabOnly = !selectedPrescriptionBase64 && selectedLabBase64;
     if (!isDual && !isPrescriptionOnly && !isLabOnly) return;
+
+    if (window.authPro && !window.authPro.isPro()) {
+      window.authPro.openPaywall('upgrade');
+      return;
+    }
 
     const notesVal = patientNotes.value.trim();
     const notesText = notesVal ? `\n• ملاحظات المريض: ${notesVal}` : '';
