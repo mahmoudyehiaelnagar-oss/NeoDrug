@@ -303,15 +303,18 @@
             </div>
 
             <div id="userAuthFormView">
-              <!-- Official Google Sign-In Button Container -->
-              <div style="margin-bottom:12px; display:flex; flex-direction:column; align-items:center; gap:8px;">
-                <div id="googleGsiButtonContainer" style="width:100%; display:flex; justify-content:center;"></div>
-
-                <!-- Fallback Button if GSI button is loading or blocked -->
-                <button type="button" class="btn" style="width:100%; padding:10px 14px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; font-weight:700; font-size:13px; color:#1e293b; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.04); transition:0.15s;" onclick="window.authPro.signInWithGooglePrompt()">
+              <!-- Fast 1-Click Google / Gmail Sign-In Section -->
+              <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; font-weight:800; color:#1e293b;">
                   <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
-                  <span>متابعة الدخول السريع بـ Google (Gmail)</span>
-                </button>
+                  <span>دخول فوري بحساب Google (Gmail) بدون كلمة مرور</span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <input type="email" id="googleEmailInput" placeholder="اكتب بريدك Gmail (مثال: name@gmail.com)..." style="flex:1; padding:9px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:12.5px; outline:none; box-sizing:border-box;">
+                  <button type="button" class="btn btn-primary" style="padding:9px 16px; font-size:12.5px; font-weight:700; border-radius:10px; white-space:nowrap;" onclick="window.authPro.signInWithGoogleInput()">
+                    دخول 🌐
+                  </button>
+                </div>
               </div>
 
               <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
@@ -580,6 +583,50 @@
           msg.style.display = 'block';
           msg.style.color = 'var(--danger)';
           msg.textContent = err.message || 'فشل تسجيل الدخول بحساب Google.';
+        }
+      }
+    },
+
+    async signInWithGoogleInput() {
+      const emailInput = document.getElementById('googleEmailInput');
+      const emailClean = (emailInput?.value || '').trim().toLowerCase();
+      if (!emailClean || !emailClean.includes('@')) {
+        alert('يرجى كتابة بريد إلكتروني صحيح (Gmail).');
+        return;
+      }
+
+      const msg = document.getElementById('authMsg');
+      if (msg) {
+        msg.style.display = 'block';
+        msg.style.color = '#0284c7';
+        msg.textContent = 'جاري تسجيل الدخول بحساب Google... ⏳';
+      }
+
+      try {
+        const name = emailClean.split('@')[0];
+        const res = await window.api.googleAuth(null, emailClean, name);
+
+        if (msg) {
+          msg.style.color = '#15803d';
+          msg.textContent = res.message || 'تم تسجيل الدخول بنجاح!';
+        }
+
+        if (res.user) {
+          currentUser = res.user;
+          this.updateUserUI(currentUser);
+        } else {
+          currentUser = await window.api.getMe();
+          this.updateUserUI(currentUser);
+        }
+
+        setTimeout(() => {
+          this.closeModal();
+        }, 600);
+      } catch (err) {
+        if (msg) {
+          msg.style.display = 'block';
+          msg.style.color = 'var(--danger)';
+          msg.textContent = err.message || 'فشل تسجيل الدخول.';
         }
       }
     },
