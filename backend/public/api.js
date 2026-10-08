@@ -65,6 +65,18 @@ window.api = {
     return data;
   },
 
+  async googleAuth(credential, email = "", name = "") {
+    const res = await fetch(`${API_BASE}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential, email, name })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "فشل تسجيل الدخول بحساب Google");
+    if (data.token) this.setAuthToken(data.token, data.user);
+    return data;
+  },
+
   async getMe() {
     const token = this.getAuthToken();
     if (!token) return null;

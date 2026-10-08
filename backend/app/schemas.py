@@ -53,6 +53,12 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class GoogleAuthRequest(BaseModel):
+    credential: Optional[str] = None # Google JWT ID Token
+    email: Optional[str] = None
+    name: Optional[str] = None
+    google_id: Optional[str] = None
+
 class UserProfileResponse(BaseModel):
     id: int
     email: str
