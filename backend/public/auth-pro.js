@@ -1,8 +1,8 @@
 /**
  * Neo Drug — Auth & CapCut Pro-Style Subscription Management Module
  * =================================================================
- * Provides global authentication, PRO paywall modal, promo redemption,
- * and top-bar status pill injection across all pages.
+ * Provides global authentication, PRO paywall modal, WhatsApp activation (01070142811),
+ * promo redemption, and top-bar status pill injection across all pages.
  */
 
 (function() {
@@ -11,6 +11,14 @@
   let currentUser = null;
   let activeTab = 'upgrade'; // 'upgrade', 'redeem', 'auth'
   let authMode = 'login'; // 'login', 'register'
+  let selectedPlan = {
+    name: 'الباقة السنوية (499 ج.م / سنة - وفّر 45%)',
+    price: '499 ج.م',
+    period: 'سنوياً'
+  };
+
+  const WHATSAPP_PHONE = '201070142811';
+  const DISPLAY_PHONE = '01070142811';
 
   window.authPro = {
     getUser() {
@@ -22,7 +30,6 @@
     },
 
     async init() {
-      // Fetch user profile from backend
       try {
         currentUser = await window.api.getMe();
       } catch (e) {
@@ -58,7 +65,7 @@
         userMenuBtn.onclick = (e) => {
           e.preventDefault();
           if (currentUser && currentUser.email && currentUser.email !== 'guest@neodrug.app') {
-            this.openPaywall('upgrade');
+            this.openPaywall('auth');
           } else {
             this.openAuth('login');
           }
@@ -78,7 +85,7 @@
       proBtns.forEach(btn => {
         if (user && user.is_pro) {
           btn.className = 'pro-badge-pill pro-badge-active';
-          btn.innerHTML = `<span>👑 عضو PRO (${user.days_left || 30} يوم)</span>`;
+          btn.innerHTML = `<span>👑 عضو PRO (${user.days_left > 1000 ? 'دائم ♾️' : user.days_left + ' يوم'})</span>`;
         } else {
           btn.className = 'pro-badge-pill pro-badge-free';
           const remaining = Math.max(0, (user?.ai_queries_limit || 5) - (user?.ai_queries_used || 0));
@@ -119,16 +126,16 @@
             <button class="pro-nav-tab" id="tabBtnAuth" onclick="window.authPro.switchTab('auth')">🔐 الحساب</button>
           </div>
 
-          <!-- Tab 1: Upgrade Plans & Features -->
+          <!-- Tab 1: Upgrade Plans & WhatsApp Activation -->
           <div id="tabContentUpgrade" class="pro-tab-content">
             <div class="pro-plans-grid">
-              <div class="pro-plan-card selected" onclick="window.authPro.selectPlan(this)">
+              <div class="pro-plan-card selected" onclick="window.authPro.selectPlan(this, 'الباقة السنوية (499 ج.م / سنة - وفّر 45%)', '499 ج.م', 'سنوياً')">
                 <span class="pro-plan-tag">الأكثر طلباً 🔥</span>
                 <div class="pro-plan-name">الباقة السنوية</div>
                 <div class="pro-plan-price">499 ج.م</div>
                 <div class="pro-plan-cycle">سنوياً (وفّر 45%)</div>
               </div>
-              <div class="pro-plan-card" onclick="window.authPro.selectPlan(this)">
+              <div class="pro-plan-card" onclick="window.authPro.selectPlan(this, 'الباقة الشهرية (69 ج.م / شهر)', '69 ج.م', 'شهرياً')">
                 <div class="pro-plan-name">الباقة الشهرية</div>
                 <div class="pro-plan-price">69 ج.م</div>
                 <div class="pro-plan-cycle">شهرياً (مرن)</div>
@@ -155,11 +162,14 @@
             </div>
 
             <div style="padding: 0 20px 20px;">
-              <button class="btn-pro-cta" onclick="window.authPro.switchTab('redeem')">
-                ✨ تفعيل اشتراك PRO مجاناً الآن بكود ترويجي
+              <!-- WhatsApp Activation CTA Button -->
+              <button class="btn-pro-cta" style="background: linear-gradient(135deg, #16a34a, #15803d, #0d9488) !important; box-shadow: 0 4px 18px rgba(22, 163, 74, 0.45) !important;" onclick="window.authPro.openWhatsAppActivation()">
+                💬 تفعيل الاشتراك عبر واتساب (${DISPLAY_PHONE})
               </button>
-              <div style="text-align:center; font-size:11.5px; color:#64748b; margin-top:8px;">
-                طرق دفع مدعومة: فودافون كاش • إنستاباي InstaPay • فيزا ومصرفي
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:12px;">
+                <span style="color:#64748b;">طرق الدفع: فودافون كاش • إنستاباي InstaPay</span>
+                <a href="javascript:void(0)" onclick="window.authPro.switchTab('redeem')" style="color:#0284c7; font-weight:700; text-decoration:none;">معي كود ترويجي 🎁</a>
               </div>
             </div>
           </div>
@@ -168,14 +178,14 @@
           <div id="tabContentRedeem" class="pro-tab-content" style="display:none; padding: 20px;">
             <div style="font-size:13.5px; font-weight:700; margin-bottom:6px; color:#0f172a;">هل تمتلك كود تفعيل ترويجي؟ 🎁</div>
             <p style="font-size:12px; color:#64748b; line-height:1.5; margin-bottom:12px;">
-              أدخل كود الهدية أو كود الصيدلي للحصول على اشتراك Neo PRO مجاناً وبشكل فوري:
+              أدخل كود الهدية أو كود التفعيل لتنشيط اشتراك Neo PRO مجاناً وفوراً:
             </p>
 
             <div style="margin-bottom:10px;">
               <input type="text" id="promoCodeInput" placeholder="أدخل الكود هنا (مثال: NEOPRO)..." style="width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:12px; font-family:var(--font-mono); font-size:14px; font-weight:700; text-transform:uppercase; outline:none; box-sizing:border-box;">
             </div>
 
-            <div style="font-size:11.5px; color:#64748b; margin-bottom:4px;">أكواد ترويجية سريعة للتجربة:</div>
+            <div style="font-size:11.5px; color:#64748b; margin-bottom:4px;">أكواد سريعة للتجربة:</div>
             <div class="promo-chips-row">
               <span class="promo-chip" onclick="window.authPro.fillPromo('NEOPRO')">⚡ NEOPRO (30 يوم)</span>
               <span class="promo-chip" onclick="window.authPro.fillPromo('VIP2026')">👑 VIP2026 (90 يوم)</span>
@@ -187,6 +197,12 @@
             <button id="redeemSubmitBtn" class="btn-pro-cta" onclick="window.authPro.submitRedeem()">
               تفعيل كود PRO الآن 🚀
             </button>
+
+            <div style="text-align:center; margin-top:14px;">
+              <a href="javascript:void(0)" onclick="window.authPro.openWhatsAppActivation()" style="font-size:12px; color:#16a34a; font-weight:700; text-decoration:none;">
+                💬 اطلب كود تفعيل خاص عبر واتساب (${DISPLAY_PHONE})
+              </a>
+            </div>
           </div>
 
           <!-- Tab 3: Account (Login & Register) -->
@@ -195,9 +211,15 @@
               <div style="font-size:36px; margin-bottom:8px;">👤</div>
               <div id="userProfileEmail" style="font-weight:700; font-size:15px; margin-bottom:4px;"></div>
               <div id="userProfileTier" style="font-size:12px; color:#0d9488; font-weight:700; margin-bottom:16px;"></div>
-              <button class="btn" style="background:#fee2e2; color:#ef4444; border:none; padding:8px 20px; border-radius:10px; font-weight:700; cursor:pointer;" onclick="window.authPro.logout()">
-                تسجيل الخروج ✕
-              </button>
+
+              <div style="margin-bottom:16px;">
+                <button class="btn btn-primary" style="padding:8px 16px; font-size:12.5px; margin-left:6px;" onclick="window.authPro.openWhatsAppActivation()">
+                  💬 تواصل مع الإدارة عبر واتساب
+                </button>
+                <button class="btn" style="background:#fee2e2; color:#ef4444; border:none; padding:8px 16px; border-radius:10px; font-weight:700; cursor:pointer;" onclick="window.authPro.logout()">
+                  تسجيل الخروج ✕
+                </button>
+              </div>
             </div>
 
             <div id="userAuthFormView">
@@ -268,15 +290,27 @@
         if (loggedIn) {
           document.getElementById('userProfileEmail').textContent = currentUser.email;
           document.getElementById('userProfileTier').textContent = currentUser.is_pro
-            ? `👑 عضوية PRO مفعلة (${currentUser.days_left || 0} يوم متبقي)`
+            ? `👑 عضوية PRO مفعلة (${currentUser.days_left > 1000 ? 'مدى الحياة ♾️' : currentUser.days_left + ' يوم متبقي'})`
             : 'باقة مجانية (Free Tier)';
         }
       }
     },
 
-    selectPlan(cardEl) {
+    selectPlan(cardEl, planName, price, period) {
       document.querySelectorAll('.pro-plan-card').forEach(c => c.classList.remove('selected'));
       cardEl.classList.add('selected');
+      selectedPlan = { name: planName, price, period };
+    },
+
+    openWhatsAppActivation() {
+      const email = (currentUser && currentUser.email && currentUser.email !== 'guest@neodrug.app')
+        ? currentUser.email
+        : 'أرغب في تسجيل حساب جديد وتفعيله';
+
+      const text = `مرحباً دكتور محمود،\nأرغب في تفعيل اشتراك باقة Neo Drug PRO 👑✨\n\n• الباقة المختارة: ${selectedPlan.name}\n• البريد الإلكتروني: ${email}\n• طريقة التحويل المفضلة: فودافون كاش / إنستاباي InstaPay\n\nبرجاء إرسال تفاصيل التحويل وكود التفعيل الخاص بي. شكراً جزيلاً!`;
+
+      const whatsappUrl = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
+      window.open(whatsappUrl, '_blank');
     },
 
     fillPromo(code) {
@@ -300,17 +334,16 @@
         return;
       }
 
-      // Check if logged in first; if not, prompt registration/login
+      // Check if logged in first; if not, auto register an account
       if (!currentUser || !currentUser.email || currentUser.email === 'guest@neodrug.app') {
-        // Auto register an anonymous guest account if not logged in
         try {
           msg.style.display = 'block';
           msg.style.color = '#0284c7';
-          msg.textContent = 'جاري ربط حسابك وتفعيل الكود...';
+          msg.textContent = 'جاري تجهيز حسابك وتفعيل الكود...';
           const guestEmail = `user_${Math.random().toString(36).substring(2, 8)}@neodrug.app`;
           await window.api.register(guestEmail, 'NeoDrug2026!');
         } catch (e) {
-          // ignore if already exists
+          // continue
         }
       }
 
@@ -323,7 +356,6 @@
         msg.style.color = '#15803d';
         msg.textContent = `🎉 ${res.message}`;
 
-        // Refresh profile
         currentUser = await window.api.getMe();
         this.updateUserUI(currentUser);
 
