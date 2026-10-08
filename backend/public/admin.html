@@ -182,6 +182,11 @@ tr:hover td {
   border-color: #fca5a5;
   color: #b91c1c;
 }
+.action-btn.btn-edit {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #0369a1;
+}
 .login-lock-card {
   max-width: 420px;
   margin: 60px auto;
@@ -198,6 +203,27 @@ tr:hover td {
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 20px;
+}
+/* Modal Backdrop for Edit User */
+.edit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.edit-modal-card {
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  position: relative;
 }
 </style>
 </head>
@@ -225,7 +251,7 @@ tr:hover td {
       <div class="admin-title">
         <span>🛡️</span> لوحة إدارة Neo Drug PRO
       </div>
-      <div style="font-size: 12.5px; opacity: 0.85; margin-top: 2px;">إدارة كاملة لحسابات المستخدمين، الاشتراكات، وأكواد التفعيل</div>
+      <div style="font-size: 12.5px; opacity: 0.85; margin-top: 2px;">تحكم كامل في الإيميلات، الاشتراكات، الحذف، وتوليد الأكواد</div>
     </div>
     <div style="display: flex; gap: 8px; align-items: center;">
       <a href="/index" style="background: rgba(255,255,255,0.15); color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700;">الموقع الرئيسي ↗</a>
@@ -255,47 +281,48 @@ tr:hover td {
 
   <!-- Tabs Navigation -->
   <div class="admin-tabs">
-    <button class="admin-tab-btn active" id="tabUsersBtn" onclick="switchAdminTab('users')">👥 إدارة المستخدمين والإيميلات</button>
-    <button class="admin-tab-btn" id="tabPromosBtn" onclick="switchAdminTab('promos')">🎁 توليد وأكواد التفعيل</button>
+    <button class="admin-tab-btn active" id="tabUsersBtn" onclick="switchAdminTab('users')">👥 إدارة وتعديل المستخدمين والإيميلات</button>
+    <button class="admin-tab-btn" id="tabPromosBtn" onclick="switchAdminTab('promos')">🎁 توليد وإدارة أكواد التفعيل</button>
   </div>
 
   <!-- Tab 1: Users Management -->
   <div id="tabUsersContent" class="tab-content">
 
-    <!-- Add New User Form -->
-    <div class="form-box">
-      <div style="font-size: 14.5px; font-weight: 800; margin-bottom: 12px; color: #0f172a;">+ إضافة مستخدم جديد يدوياً إلى النظام</div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px;">
-        <div>
-          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">البريد الإلكتروني:</label>
-          <input type="email" id="newUserEmail" placeholder="user@example.com" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
-        </div>
-        <div>
-          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">كلمة المرور:</label>
-          <input type="text" id="newUserPassword" placeholder="كلمة المرور (6+ أحرف)" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
-        </div>
-        <div>
-          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">الاسم (اختياري):</label>
-          <input type="text" id="newUserName" placeholder="د. فلان" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
-        </div>
-        <div>
-          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">نوع الباقة:</label>
-          <select id="newUserTier" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff;">
+    <!-- Add New User Form & Quick Delete by Email -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 20px;">
+      <!-- Add User Form -->
+      <div class="form-box" style="margin-bottom: 0;">
+        <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; color: #0f172a;">+ إضافة أو تسجيل حساب مستخدم جديد:</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px;">
+          <input type="email" id="newUserEmail" placeholder="البريد الإلكتروني..." style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;">
+          <input type="text" id="newUserPassword" placeholder="كلمة المرور..." style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;">
+          <input type="text" id="newUserName" placeholder="الاسم (اختياري)..." style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;">
+          <select id="newUserTier" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-size: 12.5px;">
             <option value="free">مجاني (Free)</option>
-            <option value="pro">عضوية PRO (30 يوم)</option>
-            <option value="pro_year">عضوية PRO (سنة 365 يوم)</option>
-            <option value="pro_life">عضوية PRO (مدى الحياة ♾️)</option>
+            <option value="pro">PRO (30 يوم)</option>
+            <option value="pro_year">PRO (سنة كاملة)</option>
+            <option value="pro_life">PRO (مدى الحياة ♾️)</option>
           </select>
         </div>
+        <button class="btn btn-primary" style="padding: 8px 16px; font-weight: 700; font-size: 12.5px;" onclick="handleCreateUser()">
+          + إضافة المستخدم الآن
+        </button>
       </div>
-      <button class="btn btn-primary" style="padding: 8px 18px; font-weight: 700;" onclick="handleCreateUser()">
-        + حفظ وإنشاء المستخدم
-      </button>
+
+      <!-- Quick Delete by Email -->
+      <div class="form-box" style="margin-bottom: 0; background: #fff1f2; border-color: #fecdd3;">
+        <div style="font-size: 13.5px; font-weight: 800; margin-bottom: 8px; color: #9f1239;">🗑️ حذف حساب بواسطة الإيميل:</div>
+        <input type="email" id="deleteEmailInput" placeholder="اكتب البريد الإلكتروني للحذف..." style="width: 100%; padding: 8px 10px; border: 1px solid #fda4af; border-radius: 8px; font-size: 12px; margin-bottom: 8px; box-sizing: border-box;">
+        <button class="btn" style="width: 100%; background: #e11d48; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer;" onclick="handleQuickDeleteEmail()">
+          حذف هذا الإيميل نهائياً ✕
+        </button>
+      </div>
     </div>
 
+    <!-- Search and Table -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
       <div style="font-size: 15px; font-weight: 800;">قائمة حسابات المستخدمين:</div>
-      <input type="text" id="userSearchInput" placeholder="بحث بالبريد أو الاسم..." style="padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; width: 220px;" oninput="filterUsersTable()">
+      <input type="text" id="userSearchInput" placeholder="بحث بالبريد أو الاسم..." style="padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; width: 240px;" oninput="filterUsersTable()">
     </div>
 
     <div class="table-responsive">
@@ -307,8 +334,8 @@ tr:hover td {
             <th>الاسم</th>
             <th>الباقة</th>
             <th>الصلاحية</th>
-            <th>نشاط اليوم</th>
-            <th>التحكم والترقية الفورية</th>
+            <th>النشاط</th>
+            <th>التحكم والتعديل الشامل</th>
           </tr>
         </thead>
         <tbody id="usersTableBody">
@@ -380,6 +407,55 @@ tr:hover td {
           <tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--muted);">جاري تحميل الأكواد...</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal Popup -->
+<div id="editUserModal" class="edit-modal-backdrop" style="display: none;">
+  <div class="edit-modal-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+      <div style="font-size: 16px; font-weight: 800;">✏️ تعديل بيانات واشتراك الحساب</div>
+      <button onclick="closeEditModal()" style="background: none; border: none; font-size: 16px; cursor: pointer; color: var(--muted);">✕</button>
+    </div>
+
+    <input type="hidden" id="editUserId">
+
+    <div style="margin-bottom: 12px;">
+      <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">البريد الإلكتروني:</label>
+      <input type="email" id="editUserEmail" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;">
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">الاسم / اللقب:</label>
+      <input type="text" id="editUserName" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;">
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">نوع الباقة:</label>
+      <select id="editUserTier" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: #fff;" onchange="onEditTierChange()">
+        <option value="free">مجاني (Free Tier)</option>
+        <option value="pro">عضوية PRO 👑</option>
+      </select>
+    </div>
+
+    <div id="editDaysWrap" style="margin-bottom: 12px;">
+      <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">مدة الاشتراك (بالأيام - 36500 تعني مدى الحياة):</label>
+      <input type="number" id="editUserDays" value="30" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;">
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">تعيين كلمة مرور جديدة (اتركها فارغة إذا لم ترد التغيير):</label>
+      <input type="text" id="editUserNewPassword" placeholder="كلمة المرور الجديدة..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;">
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-primary" style="flex: 1; padding: 10px; font-weight: 700;" onclick="submitEditUserFull()">
+        حفظ التعديلات ✓
+      </button>
+      <button class="btn" style="background: #fee2e2; color: #ef4444; border: none; padding: 10px 14px; border-radius: 10px; font-weight: 700; cursor: pointer;" onclick="deleteCurrentUserFromModal()">
+        حذف ✕
+      </button>
     </div>
   </div>
 </div>
@@ -472,11 +548,11 @@ function renderUsersTable(users) {
       <td>${u.is_pro ? (u.days_left > 1000 ? 'مدى الحياة ♾️' : `${u.days_left} يوم متبقي`) : '-'}</td>
       <td style="font-family:var(--font-mono);">${u.today_ai_used + u.today_ocr_used} طلبات</td>
       <td>
+        <button class="action-btn btn-edit" title="تعديل الحساب والاشتراك" onclick="openEditModal(${u.id})">✏️ تعديل</button>
         <button class="action-btn btn-upgrade" title="ترقية لشهر" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'pro', 30)">+ 30 يوم</button>
         <button class="action-btn btn-upgrade" title="ترقية لسنة" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'pro', 365)">+ سنة</button>
         <button class="action-btn btn-upgrade" title="ترقية مدى الحياة" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'pro', 36500)">♾️ دائم</button>
         ${u.is_pro ? `<button class="action-btn btn-downgrade" onclick="updateUser(${u.id}, '${escapeHtml(u.email)}', 'free', 0)">إلغاء PRO</button>` : ''}
-        <button class="action-btn" title="تغيير كلمة المرور" onclick="resetUserPassword(${u.id}, '${escapeHtml(u.email)}')">🔑 باسورد</button>
         <button class="action-btn btn-downgrade" title="حذف المستخدم نهائياً" onclick="deleteUser(${u.id}, '${escapeHtml(u.email)}')">🗑️ حذف</button>
       </td>
     </tr>
@@ -494,6 +570,100 @@ function filterUsersTable() {
     (u.username && u.username.toLowerCase().includes(q))
   );
   renderUsersTable(filtered);
+}
+
+function openEditModal(userId) {
+  const u = allUsersCache.find(x => x.id === userId);
+  if (!u) return;
+
+  document.getElementById('editUserId').value = u.id;
+  document.getElementById('editUserEmail').value = u.email || '';
+  document.getElementById('editUserName').value = u.username || '';
+  document.getElementById('editUserTier').value = u.is_pro ? 'pro' : 'free';
+  document.getElementById('editUserDays').value = u.is_pro ? (u.days_left || 30) : 30;
+  document.getElementById('editUserNewPassword').value = '';
+  onEditTierChange();
+
+  document.getElementById('editUserModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('editUserModal').style.display = 'none';
+}
+
+function onEditTierChange() {
+  const isPro = document.getElementById('editUserTier').value === 'pro';
+  document.getElementById('editDaysWrap').style.display = isPro ? 'block' : 'none';
+}
+
+async function submitEditUserFull() {
+  const userId = parseInt(document.getElementById('editUserId').value);
+  const email = document.getElementById('editUserEmail').value.trim();
+  const username = document.getElementById('editUserName').value.trim();
+  const tier = document.getElementById('editUserTier').value;
+  const days = parseInt(document.getElementById('editUserDays').value) || 30;
+  const newPassword = document.getElementById('editUserNewPassword').value.trim();
+
+  try {
+    const res = await fetch('/api/admin/users/edit-full', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        email: email,
+        username: username,
+        tier: tier,
+        duration_days: days,
+        new_password: newPassword || null
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'فشل التعديل');
+    alert('🎉 ' + (data.message || 'تم حفظ التعديلات بنجاح!'));
+    closeEditModal();
+    loadUsers();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e.message);
+  }
+}
+
+function deleteCurrentUserFromModal() {
+  const userId = parseInt(document.getElementById('editUserId').value);
+  const email = document.getElementById('editUserEmail').value.trim();
+  closeEditModal();
+  deleteUser(userId, email);
+}
+
+async function handleQuickDeleteEmail() {
+  const email = document.getElementById('deleteEmailInput').value.trim();
+  if (!email) {
+    alert('يرجى كتابة البريد الإلكتروني للحذف.');
+    return;
+  }
+  if (!confirm(`هل أنت متأكد من حذف الحساب (${email}) نهائياً؟`)) return;
+
+  try {
+    const res = await fetch('/api/admin/users/delete-by-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({ email: email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'فشل الحذف');
+    alert(data.message || 'تم حذف الحساب بنجاح.');
+    document.getElementById('deleteEmailInput').value = '';
+    loadUsers();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e.message);
+  }
 }
 
 async function handleCreateUser() {
@@ -546,28 +716,6 @@ async function deleteUser(userId, email) {
     alert(data.message || 'تم حذف المستخدم بنجاح.');
     loadUsers();
     initDashboard();
-  } catch (e) {
-    alert('خطأ: ' + e);
-  }
-}
-
-async function resetUserPassword(userId, email) {
-  const newPass = prompt(`أدخل كلمة المرور الجديدة لحساب (${email}):`);
-  if (!newPass || newPass.trim().length < 6) {
-    if (newPass !== null) alert('كلمة المرور يجب أن لا تقل عن 6 أحرف.');
-    return;
-  }
-  try {
-    const res = await fetch('/api/admin/users/reset-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': adminKey
-      },
-      body: JSON.stringify({ user_id: userId, new_password: newPass.trim() })
-    });
-    const data = await res.json();
-    alert(data.message || 'تم تغيير كلمة المرور بنجاح.');
   } catch (e) {
     alert('خطأ: ' + e);
   }

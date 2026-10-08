@@ -108,6 +108,18 @@ class AdminCreateUserRequest(BaseModel):
     tier: str = "free" # 'free', 'pro'
     duration_days: Optional[int] = 30 # if pro
 
+class AdminEditUserFullRequest(BaseModel):
+    user_id: int
+    email: Optional[str] = None
+    username: Optional[str] = None
+    new_password: Optional[str] = None
+    tier: Optional[str] = None # 'free', 'pro'
+    duration_days: Optional[int] = None
+    reset_usage: Optional[bool] = False
+
+class AdminDeleteByEmailRequest(BaseModel):
+    email: str
+
 class AdminResetPasswordRequest(BaseModel):
     user_id: int
     new_password: str

@@ -930,9 +930,83 @@ def delete_admin_user(user_id: int, request: Request, db: Session = Depends(get_
     if not user:
         raise HTTPException(status_code=404, detail="المستخدم غير موجود.")
 
+    user_email = user.email
+    # Safely clean up associated records first
+    db.query(models.UsageRecord).filter(models.UsageRecord.user_id == user.id).delete()
+    db.query(models.PromoRedemption).filter(models.PromoRedemption.user_id == user.id).delete()
     db.delete(user)
     db.commit()
-    return {"success": True, "message": f"تم حذف حساب المستخدم {user.email} بنجاح!"}
+    return {"success": True, "message": f"تم حذف حساب المستخدم {user_email} وجميع بياناته بنجاح!"}
+
+@app.post("/api/admin/users/delete-by-email")
+def delete_admin_user_by_email(req: schemas.AdminDeleteByEmailRequest, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    email_clean = req.email.strip().lower()
+    user = db.query(models.User).filter(models.User.email == email_clean).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"لم يتم العثور على مستخدم بالبريد: {email_clean}")
+
+    user_email = user.email
+    db.query(models.UsageRecord).filter(models.UsageRecord.user_id == user.id).delete()
+    db.query(models.PromoRedemption).filter(models.PromoRedemption.user_id == user.id).delete()
+    db.delete(user)
+    db.commit()
+    return {"success": True, "message": f"تم حذف حساب {user_email} بنجاح!"}
+
+@app.post("/api/admin/users/edit-full")
+def edit_user_full(req: schemas.AdminEditUserFullRequest, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    user = db.query(models.User).filter(models.User.id == req.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود.")
+
+    if req.email and req.email.strip() and req.email.strip().lower() != user.email:
+        new_email = req.email.strip().lower()
+        exists = db.query(models.User).filter(models.User.email == new_email).first()
+        if exists:
+            raise HTTPException(status_code=400, detail="البريد الإلكتروني الجديد مسجل بالفعل لمستخدم آخر.")
+        user.email = new_email
+
+    if req.username is not None:
+        user.username = req.username.strip()
+
+    if req.new_password and len(req.new_password.strip()) >= 6:
+        user.password_hash = auth.hash_password(req.new_password.strip())
+
+    if req.tier:
+        if req.tier.lower() == "pro":
+            user.tier = "pro"
+            dur = req.duration_days if req.duration_days is not None else 30
+            if dur >= 30000:
+                user.pro_expires_at = None # Lifetime
+            else:
+                user.pro_expires_at = datetime.utcnow() + timedelta(days=dur)
+        else:
+            user.tier = "free"
+            user.pro_expires_at = None
+
+    if req.reset_usage:
+        db.query(models.UsageRecord).filter(models.UsageRecord.user_id == user.id).delete()
+
+    db.commit()
+    db.refresh(user)
+
+    is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > datetime.utcnow()))
+    days_left = (user.pro_expires_at - datetime.utcnow()).days if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
+
+    return {
+        "success": True,
+        "message": f"تم تعديل بيانات واشتراك {user.email} بنجاح!",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "tier": user.tier,
+            "is_pro": is_pro,
+            "days_left": days_left,
+            "pro_expires_at": user.pro_expires_at
+        }
+    }
 
 @app.post("/api/admin/users/reset-password")
 def reset_user_password(req: schemas.AdminResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
