@@ -599,7 +599,9 @@ def register(req: schemas.RegisterRequest, db: Session = Depends(get_db)):
         "sub": new_user.id,
         "email": new_user.email,
         "username": new_user.username,
-        "tier": new_user.tier
+        "role": new_user.role or "user",
+        "tier": new_user.tier,
+        "pro_expires_at": new_user.pro_expires_at.isoformat() if new_user.pro_expires_at else None
     })
 
     user_profile = schemas.UserProfileResponse(
@@ -633,6 +635,9 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
         if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
             is_pro = True
             days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
+        elif not user.pro_expires_at:
+            is_pro = True
+            days_left = 9999
         else:
             user.tier = "free"
             db.commit()
@@ -641,7 +646,9 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
         "sub": user.id,
         "email": user.email,
         "username": user.username,
-        "tier": user.tier
+        "role": user.role or "user",
+        "tier": user.tier,
+        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
     })
 
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
@@ -675,8 +682,8 @@ def get_me(request: Request, db: Session = Depends(get_db)):
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
     if user:
-        is_pro = user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > datetime.utcnow())
-        days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days) if (is_pro and user.pro_expires_at) else 0
+        is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > datetime.utcnow()))
+        days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
         usage = db.query(models.UsageRecord).filter(
             models.UsageRecord.user_id == user.id,
             models.UsageRecord.date_str == today_str
@@ -767,12 +774,23 @@ def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Dep
     db.commit()
     db.refresh(user)
 
+    # Issue updated token reflecting PRO tier
+    new_token = auth.create_jwt_token({
+        "sub": user.id,
+        "email": user.email,
+        "username": user.username,
+        "role": user.role or "user",
+        "tier": user.tier,
+        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
+    })
+
     return {
         "success": True,
         "message": f"تم تفعيل اشتراك Neo PRO بنجاح لمدة {promo.duration_days} يوماً! استمتع بكافة المزايا غير المحدودة.",
         "tier": "pro",
         "duration_days": promo.duration_days,
-        "pro_expires_at": user.pro_expires_at
+        "pro_expires_at": user.pro_expires_at,
+        "token": new_token
     }
 
 # --- Admin Management & Control Panel APIs ---

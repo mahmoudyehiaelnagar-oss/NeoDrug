@@ -6,11 +6,24 @@ window.api = {
     return localStorage.getItem("NEO_AUTH_TOKEN") || "";
   },
 
-  setAuthToken(token) {
+  setAuthToken(token, user = null) {
     if (token) {
       localStorage.setItem("NEO_AUTH_TOKEN", token);
+      if (user) {
+        localStorage.setItem("NEO_USER_PROFILE", JSON.stringify(user));
+      }
     } else {
       localStorage.removeItem("NEO_AUTH_TOKEN");
+      localStorage.removeItem("NEO_USER_PROFILE");
+    }
+  },
+
+  getCachedUser() {
+    try {
+      const u = localStorage.getItem("NEO_USER_PROFILE");
+      return u ? JSON.parse(u) : null;
+    } catch (e) {
+      return null;
     }
   },
 
@@ -36,7 +49,7 @@ window.api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "فشل إنشاء الحساب");
-    if (data.token) this.setAuthToken(data.token);
+    if (data.token) this.setAuthToken(data.token, data.user);
     return data;
   },
 
@@ -48,20 +61,32 @@ window.api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "فشل تسجيل الدخول");
-    if (data.token) this.setAuthToken(data.token);
+    if (data.token) this.setAuthToken(data.token, data.user);
     return data;
   },
 
   async getMe() {
+    const token = this.getAuthToken();
+    if (!token) return null;
+
     try {
       const res = await fetch(`${API_BASE}/auth/me`, {
         headers: this.getAuthHeaders()
       });
-      if (!res.ok) return null;
-      return await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          this.setAuthToken(null);
+        }
+        return null;
+      }
+      const profile = await res.json();
+      if (profile && profile.email && profile.email !== 'guest@neodrug.app') {
+        localStorage.setItem("NEO_USER_PROFILE", JSON.stringify(profile));
+      }
+      return profile;
     } catch (e) {
       console.warn("Error fetching user profile:", e);
-      return null;
+      return this.getCachedUser();
     }
   },
 
@@ -73,12 +98,14 @@ window.api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "فشل تفعيل الكود الترويجي");
+    if (data.token) {
+      this.setAuthToken(data.token);
+    }
     return data;
   },
 
   logout() {
     this.setAuthToken(null);
-    localStorage.removeItem("NEO_USER_PROFILE");
     if (window.authPro && typeof window.authPro.updateUserUI === "function") {
       window.authPro.updateUserUI(null);
     }

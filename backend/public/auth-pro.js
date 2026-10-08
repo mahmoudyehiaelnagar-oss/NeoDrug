@@ -30,14 +30,24 @@
     },
 
     async init() {
-      try {
-        currentUser = await window.api.getMe();
-      } catch (e) {
-        console.warn('Could not fetch user profile:', e);
-      }
+      // 1. Immediately load cached user from localStorage for zero-delay persistence across all pages
+      currentUser = window.api.getCachedUser();
       this.injectHeaderWidget();
       this.injectModal();
       this.updateUserUI(currentUser);
+
+      // 2. Asynchronously verify and refresh profile from backend if token exists
+      if (window.api.getAuthToken()) {
+        try {
+          const fresh = await window.api.getMe();
+          if (fresh) {
+            currentUser = fresh;
+            this.updateUserUI(currentUser);
+          }
+        } catch (e) {
+          console.warn('Could not refresh user profile:', e);
+        }
+      }
     },
 
     injectHeaderWidget() {
@@ -352,17 +362,13 @@
         return;
       }
 
-      // Check if logged in first; if not, auto register an account
+      // Check if logged in first; prompt login so PRO is permanently attached to user's real email
       if (!currentUser || !currentUser.email || currentUser.email === 'guest@neodrug.app') {
-        try {
-          msg.style.display = 'block';
-          msg.style.color = '#0284c7';
-          msg.textContent = 'جاري تجهيز حسابك وتفعيل الكود...';
-          const guestEmail = `user_${Math.random().toString(36).substring(2, 8)}@neodrug.app`;
-          await window.api.register(guestEmail, 'NeoDrug2026!');
-        } catch (e) {
-          // continue
-        }
+        msg.style.display = 'block';
+        msg.style.color = '#d97706';
+        msg.textContent = 'يرجى تسجيل الدخول أو إنشاء حسابك أولاً ليتم ربط باقة PRO بإيميلك الشخصي بشكل دائم.';
+        setTimeout(() => this.openAuth('login'), 1200);
+        return;
       }
 
       btn.disabled = true;
@@ -441,8 +447,13 @@
         msg.style.color = '#15803d';
         msg.textContent = res.message || 'تمت العملية بنجاح!';
 
-        currentUser = await window.api.getMe();
-        this.updateUserUI(currentUser);
+        if (res.user) {
+          currentUser = res.user;
+          this.updateUserUI(currentUser);
+        } else {
+          currentUser = await window.api.getMe();
+          this.updateUserUI(currentUser);
+        }
 
         setTimeout(() => {
           this.closeModal();

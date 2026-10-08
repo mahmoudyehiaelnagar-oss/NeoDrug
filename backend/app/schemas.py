@@ -86,6 +86,7 @@ class RedeemResponse(BaseModel):
     tier: str
     duration_days: int
     pro_expires_at: Optional[datetime] = None
+    token: Optional[str] = None
 
 # --- Admin Dashboard Schemas ---
 

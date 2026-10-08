@@ -98,12 +98,61 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -
     payload = decode_jwt_token(token)
     if not payload or "sub" not in payload:
         return None
+
     user_id = payload["sub"]
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user and user.tier == "pro" and user.pro_expires_at:
-        if user.pro_expires_at < datetime.utcnow():
-            user.tier = "free"
+    email = payload.get("email")
+    tier_from_jwt = payload.get("tier", "free")
+    exp_str = payload.get("pro_expires_at")
+    jwt_pro_exp = None
+    if exp_str:
+        try:
+            jwt_pro_exp = datetime.fromisoformat(exp_str)
+        except Exception:
+            pass
+
+    user = None
+    if isinstance(user_id, int) and user_id > 0:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user and email:
+        user = db.query(models.User).filter(models.User.email == email).first()
+
+    # Vercel Serverless Sync: If container was recreated and user not in /tmp SQLite, restore from verified JWT
+    if not user and email:
+        user = models.User(
+            email=email,
+            username=payload.get("username") or email.split("@")[0],
+            password_hash="verified_jwt_session",
+            role=payload.get("role", "user"),
+            tier=tier_from_jwt,
+            pro_expires_at=jwt_pro_exp
+        )
+        db.add(user)
+        try:
             db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+            user = db.query(models.User).filter(models.User.email == email).first()
+
+    if user:
+        # If verified JWT holds an active PRO tier newer than DB, sync to DB
+        if tier_from_jwt == "pro" and jwt_pro_exp and (not user.pro_expires_at or jwt_pro_exp > user.pro_expires_at):
+            user.tier = "pro"
+            user.pro_expires_at = jwt_pro_exp
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+
+        # Check expiration
+        if user.tier == "pro" and user.pro_expires_at:
+            if user.pro_expires_at < datetime.utcnow():
+                user.tier = "free"
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
+
     return user
 
 def get_current_user_required(request: Request, db: Session = Depends(get_db)) -> models.User:
