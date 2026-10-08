@@ -777,7 +777,7 @@ def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Dep
 
 # --- Admin Management & Control Panel APIs ---
 
-ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY", "admin2026")
+ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY", "216180")
 
 def check_admin_permission(request: Request, db: Session):
     admin_key = request.headers.get("x-admin-key") or request.headers.get("admin-key")
@@ -843,6 +843,77 @@ def get_admin_users(request: Request, db: Session = Depends(get_db)):
         ))
     return result
 
+@app.post("/api/admin/users/create", response_model=schemas.AdminUserItem)
+def create_admin_user(req: schemas.AdminCreateUserRequest, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    email_clean = req.email.strip().lower()
+    if not email_clean or "@" not in email_clean:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني غير صحيح.")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن لا تقل عن 6 أحرف.")
+
+    existing = db.query(models.User).filter(models.User.email == email_clean).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="هذا البريد الإلكتروني مسجل بالفعل.")
+
+    pwd_hash = auth.hash_password(req.password)
+    user_tier = req.tier.lower() if req.tier else "free"
+    pro_exp = None
+    if user_tier == "pro":
+        dur = req.duration_days or 30
+        pro_exp = datetime.utcnow() + timedelta(days=dur)
+
+    new_user = models.User(
+        email=email_clean,
+        username=req.username.strip() if req.username else email_clean.split("@")[0],
+        password_hash=pwd_hash,
+        tier=user_tier,
+        pro_expires_at=pro_exp
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    is_pro = (new_user.tier == "pro")
+    days_left = req.duration_days if is_pro else 0
+    return schemas.AdminUserItem(
+        id=new_user.id,
+        email=new_user.email,
+        username=new_user.username,
+        role=new_user.role or "user",
+        tier=new_user.tier or "free",
+        is_pro=is_pro,
+        pro_expires_at=new_user.pro_expires_at,
+        days_left=days_left,
+        created_at=new_user.created_at,
+        today_ai_used=0,
+        today_ocr_used=0
+    )
+
+@app.delete("/api/admin/users/{user_id}")
+def delete_admin_user(user_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود.")
+
+    db.delete(user)
+    db.commit()
+    return {"success": True, "message": f"تم حذف حساب المستخدم {user.email} بنجاح!"}
+
+@app.post("/api/admin/users/reset-password")
+def reset_user_password(req: schemas.AdminResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    user = db.query(models.User).filter(models.User.id == req.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود.")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="كلمة المرور الجديدة يجب أن لا تقل عن 6 أحرف.")
+
+    user.password_hash = auth.hash_password(req.new_password)
+    db.commit()
+    return {"success": True, "message": f"تم تغيير كلمة مرور المستخدم {user.email} بنجاح!"}
+
 @app.post("/api/admin/users/update-tier")
 def update_user_tier(req: schemas.AdminUpdateUserTierRequest, request: Request, db: Session = Depends(get_db)):
     check_admin_permission(request, db)
@@ -899,6 +970,17 @@ def create_admin_promo(req: schemas.AdminCreatePromoRequest, request: Request, d
     db.commit()
     db.refresh(new_promo)
     return new_promo
+
+@app.post("/api/admin/promos/{promo_id}/toggle")
+def toggle_admin_promo(promo_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    promo = db.query(models.PromoCode).filter(models.PromoCode.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="الكود غير موجود.")
+
+    promo.is_active = not promo.is_active
+    db.commit()
+    return {"success": True, "message": f"تم تغيير حالة الكود إلى {'نشط' if promo.is_active else 'معطل'} بنجاح!", "is_active": promo.is_active}
 
 @app.delete("/api/admin/promos/{promo_id}")
 def delete_admin_promo(promo_id: int, request: Request, db: Session = Depends(get_db)):

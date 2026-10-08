@@ -37,7 +37,7 @@ body {
 }
 .admin-container {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1150px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r);
@@ -192,6 +192,13 @@ tr:hover td {
   text-align: center;
   box-shadow: 0 10px 30px rgba(0,0,0,0.06);
 }
+.form-box {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
 </style>
 </head>
 <body>
@@ -200,16 +207,15 @@ tr:hover td {
 <div id="adminLockScreen" class="login-lock-card">
   <div style="font-size: 44px; margin-bottom: 12px;">🛡️</div>
   <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">لوحة تحكم الإدارة والاشتراكات</h2>
-  <p style="font-size: 12.5px; color: var(--muted); margin-bottom: 20px;">يرجى إدخال كلمة مرور الإدارة (Master Key) للوصول للوحة التحكم:</p>
+  <p style="font-size: 12.5px; color: var(--muted); margin-bottom: 20px;">يرجى إدخال كلمة مرور الإدارة (Master Key):</p>
 
-  <input type="password" id="adminKeyInput" placeholder="أدخل كلمة مرور الإدارة..." style="width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 14px; outline: none; box-sizing: border-box;">
+  <input type="password" id="adminKeyInput" placeholder="كلمة مرور الإدارة..." style="width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 14px; outline: none; box-sizing: border-box;">
 
   <div id="loginErrorMsg" style="font-size: 12px; color: var(--danger); font-weight: 700; margin-bottom: 12px; display: none;"></div>
 
   <button class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700;" onclick="handleAdminLogin()">
     دخول لوحة التحكم 🚀
   </button>
-  <div style="font-size: 11px; color: var(--muted); margin-top: 14px;">كلمة المرور الافتراضية: <code style="font-family: var(--font-mono); font-weight: 700;">admin2026</code></div>
 </div>
 
 <!-- Main Dashboard Container -->
@@ -219,10 +225,10 @@ tr:hover td {
       <div class="admin-title">
         <span>🛡️</span> لوحة إدارة Neo Drug PRO
       </div>
-      <div style="font-size: 12.5px; opacity: 0.85; margin-top: 2px;">إدارة حسابات المستخدمين، الاشتراكات، وأكواد التفعيل الترويجية</div>
+      <div style="font-size: 12.5px; opacity: 0.85; margin-top: 2px;">إدارة كاملة لحسابات المستخدمين، الاشتراكات، وأكواد التفعيل</div>
     </div>
     <div style="display: flex; gap: 8px; align-items: center;">
-      <a href="/index" style="background: rgba(255,255,255,0.15); color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700;">الرئيسية ↗</a>
+      <a href="/index" style="background: rgba(255,255,255,0.15); color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700;">الموقع الرئيسي ↗</a>
       <button onclick="handleAdminLogout()" style="background: #ef4444; color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;">خروج ✕</button>
     </div>
   </header>
@@ -239,7 +245,7 @@ tr:hover td {
     </div>
     <div class="stat-card">
       <div id="statTodayAi" class="stat-num" style="color: #0284c7;">-</div>
-      <div class="stat-label">استفسارات وفحوصات اليوم 🤖</div>
+      <div class="stat-label">استشارات وفحوصات اليوم 🤖</div>
     </div>
     <div class="stat-card">
       <div id="statTotalPromos" class="stat-num" style="color: #10b981;">-</div>
@@ -253,8 +259,40 @@ tr:hover td {
     <button class="admin-tab-btn" id="tabPromosBtn" onclick="switchAdminTab('promos')">🎁 توليد وأكواد التفعيل</button>
   </div>
 
-  <!-- Tab 1: Users Table -->
+  <!-- Tab 1: Users Management -->
   <div id="tabUsersContent" class="tab-content">
+
+    <!-- Add New User Form -->
+    <div class="form-box">
+      <div style="font-size: 14.5px; font-weight: 800; margin-bottom: 12px; color: #0f172a;">+ إضافة مستخدم جديد يدوياً إلى النظام</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px;">
+        <div>
+          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">البريد الإلكتروني:</label>
+          <input type="email" id="newUserEmail" placeholder="user@example.com" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
+        </div>
+        <div>
+          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">كلمة المرور:</label>
+          <input type="text" id="newUserPassword" placeholder="كلمة المرور (6+ أحرف)" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
+        </div>
+        <div>
+          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">الاسم (اختياري):</label>
+          <input type="text" id="newUserName" placeholder="د. فلان" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
+        </div>
+        <div>
+          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">نوع الباقة:</label>
+          <select id="newUserTier" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff;">
+            <option value="free">مجاني (Free)</option>
+            <option value="pro">عضوية PRO (30 يوم)</option>
+            <option value="pro_year">عضوية PRO (سنة 365 يوم)</option>
+            <option value="pro_life">عضوية PRO (مدى الحياة ♾️)</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="padding: 8px 18px; font-weight: 700;" onclick="handleCreateUser()">
+        + حفظ وإنشاء المستخدم
+      </button>
+    </div>
+
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
       <div style="font-size: 15px; font-weight: 800;">قائمة حسابات المستخدمين:</div>
       <input type="text" id="userSearchInput" placeholder="بحث بالبريد أو الاسم..." style="padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; width: 220px;" oninput="filterUsersTable()">
@@ -267,10 +305,10 @@ tr:hover td {
             <th>#</th>
             <th>البريد الإلكتروني</th>
             <th>الاسم</th>
-            <th>الباقة الحالية</th>
-            <th>صلاحية PRO</th>
-            <th>استخدام اليوم</th>
-            <th>إجراءات الترقية والتحكم</th>
+            <th>الباقة</th>
+            <th>الصلاحية</th>
+            <th>نشاط اليوم</th>
+            <th>التحكم والترقية</th>
           </tr>
         </thead>
         <tbody id="usersTableBody">
@@ -282,12 +320,12 @@ tr:hover td {
 
   <!-- Tab 2: Promo Codes Generator -->
   <div id="tabPromosContent" class="tab-content" style="display: none;">
-    <div style="background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+    <div class="form-box">
       <div style="font-size: 14.5px; font-weight: 800; margin-bottom: 12px; color: #0f172a;">إنشاء كود تفعيل ترويجي جديد 🎁</div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
         <div>
           <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">كود التفعيل (English/Upper):</label>
-          <input type="text" id="newPromoCode" placeholder="مثال: PHARMA30" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase;">
+          <input type="text" id="newPromoCode" placeholder="مثال: VIP2026" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase;">
         </div>
         <div>
           <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">مدة الاشتراك (بالأيام):</label>
@@ -309,11 +347,11 @@ tr:hover td {
         <thead>
           <tr>
             <th>الكود الترويجي</th>
-            <th>الباقة الممنوحة</th>
-            <th>المدة (أيام)</th>
+            <th>الباقة</th>
+            <th>المدة</th>
             <th>مرات الاستخدام</th>
             <th>الحالة</th>
-            <th>إجراء</th>
+            <th>إجراءات</th>
           </tr>
         </thead>
         <tbody id="promosTableBody">
@@ -360,7 +398,7 @@ async function initDashboard() {
       headers: { 'x-admin-key': adminKey }
     });
     if (!statsRes.ok) {
-      throw new Error('كلمة المرور غير صحيحة.');
+      throw new Error('كلمة مرور الإدارة غير صحيحة.');
     }
     const stats = await statsRes.json();
     document.getElementById('adminLockScreen').style.display = 'none';
@@ -412,10 +450,12 @@ function renderUsersTable(users) {
       <td>${u.is_pro ? (u.days_left > 1000 ? 'مدى الحياة ♾️' : `${u.days_left} يوم متبقي`) : '-'}</td>
       <td style="font-family:var(--font-mono);">${u.today_ai_used + u.today_ocr_used} طلبات</td>
       <td>
-        <button class="action-btn btn-upgrade" onclick="updateUser(${u.id}, 'pro', 30)">+ 30 يوم PRO</button>
-        <button class="action-btn btn-upgrade" onclick="updateUser(${u.id}, 'pro', 365)">+ سنة PRO</button>
-        <button class="action-btn btn-upgrade" onclick="updateUser(${u.id}, 'pro', 36500)">♾️ مدى الحياة</button>
+        <button class="action-btn btn-upgrade" title="ترقية لشهر" onclick="updateUser(${u.id}, 'pro', 30)">+ 30 يوم</button>
+        <button class="action-btn btn-upgrade" title="ترقية لسنة" onclick="updateUser(${u.id}, 'pro', 365)">+ سنة</button>
+        <button class="action-btn btn-upgrade" title="ترقية مدى الحياة" onclick="updateUser(${u.id}, 'pro', 36500)">♾️ دائم</button>
         ${u.is_pro ? `<button class="action-btn btn-downgrade" onclick="updateUser(${u.id}, 'free')">إلغاء PRO</button>` : ''}
+        <button class="action-btn" title="تغيير كلمة المرور" onclick="resetUserPassword(${u.id}, '${escapeHtml(u.email)}')">🔑 باسورد</button>
+        <button class="action-btn btn-downgrade" title="حذف المستخدم نهائياً" onclick="deleteUser(${u.id}, '${escapeHtml(u.email)}')">🗑️ حذف</button>
       </td>
     </tr>
   `).join('');
@@ -432,6 +472,83 @@ function filterUsersTable() {
     (u.username && u.username.toLowerCase().includes(q))
   );
   renderUsersTable(filtered);
+}
+
+async function handleCreateUser() {
+  const email = document.getElementById('newUserEmail').value.trim();
+  const password = document.getElementById('newUserPassword').value.trim();
+  const username = document.getElementById('newUserName').value.trim();
+  const tierSelect = document.getElementById('newUserTier').value;
+
+  if (!email || !password) {
+    alert('يرجى إدخال البريد الإلكتروني وكلمة المرور.');
+    return;
+  }
+
+  let tier = 'free';
+  let days = 0;
+  if (tierSelect === 'pro') { tier = 'pro'; days = 30; }
+  else if (tierSelect === 'pro_year') { tier = 'pro'; days = 365; }
+  else if (tierSelect === 'pro_life') { tier = 'pro'; days = 36500; }
+
+  try {
+    const res = await fetch('/api/admin/users/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({ email, password, username, tier, duration_days: days })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'فشل إنشاء المستخدم');
+    alert('🎉 تم إنشاء المستخدم بنجاح!');
+    document.getElementById('newUserEmail').value = '';
+    document.getElementById('newUserPassword').value = '';
+    document.getElementById('newUserName').value = '';
+    loadUsers();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e.message);
+  }
+}
+
+async function deleteUser(userId, email) {
+  if (!confirm(`هل أنت متأكد تماماً من حذف حساب المستخدم (${email}) نهائياً من النظام؟`)) return;
+  try {
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-key': adminKey }
+    });
+    const data = await res.json();
+    alert(data.message || 'تم حذف المستخدم بنجاح.');
+    loadUsers();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e);
+  }
+}
+
+async function resetUserPassword(userId, email) {
+  const newPass = prompt(`أدخل كلمة المرور الجديدة لحساب (${email}):`);
+  if (!newPass || newPass.trim().length < 6) {
+    if (newPass !== null) alert('كلمة المرور يجب أن لا تقل عن 6 أحرف.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/admin/users/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({ user_id: userId, new_password: newPass.trim() })
+    });
+    const data = await res.json();
+    alert(data.message || 'تم تغيير كلمة المرور بنجاح.');
+  } catch (e) {
+    alert('خطأ: ' + e);
+  }
 }
 
 async function updateUser(userId, tier, days = 30) {
@@ -470,9 +587,13 @@ async function loadPromos() {
         <td><span class="badge-pro">👑 PRO</span></td>
         <td style="font-family:var(--font-mono); font-weight:700;">${p.duration_days} يوم</td>
         <td style="font-family:var(--font-mono);">${p.used_count} ${p.max_uses ? `/ ${p.max_uses}` : '(غير محدود)'}</td>
-        <td>${p.is_active ? '<span style="color:#16a34a; font-weight:700;">نشط ✓</span>' : '<span style="color:#dc2626;">معطل ✕</span>'}</td>
         <td>
-          <button class="action-btn btn-downgrade" onclick="deletePromo(${p.id})">حذف ✕</button>
+          <button class="action-btn" style="${p.is_active ? 'color:#16a34a; border-color:#86efac;' : 'color:#dc2626; border-color:#fca5a5;'}" onclick="togglePromo(${p.id})">
+            ${p.is_active ? 'نشط ✓ (اضغط للتعطيل)' : 'معطل ✕ (اضغط للتفعيل)'}
+          </button>
+        </td>
+        <td>
+          <button class="action-btn btn-downgrade" onclick="deletePromo(${p.id})">🗑️ حذف</button>
         </td>
       </tr>
     `).join('');
@@ -512,8 +633,21 @@ async function handleCreatePromo() {
   }
 }
 
+async function togglePromo(id) {
+  try {
+    const res = await fetch(`/api/admin/promos/${id}/toggle`, {
+      method: 'POST',
+      headers: { 'x-admin-key': adminKey }
+    });
+    const data = await res.json();
+    loadPromos();
+  } catch (e) {
+    alert('خطأ: ' + e);
+  }
+}
+
 async function deletePromo(id) {
-  if (!confirm('هل أنت متأكد من حذف هذا الكود الترويجي؟')) return;
+  if (!confirm('هل أنت متأكد من حذف هذا الكود الترويجي نهائياً؟')) return;
   try {
     const res = await fetch(`/api/admin/promos/${id}`, {
       method: 'DELETE',

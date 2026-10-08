@@ -89,6 +89,17 @@ class RedeemResponse(BaseModel):
 
 # --- Admin Dashboard Schemas ---
 
+class AdminCreateUserRequest(BaseModel):
+    email: str
+    password: str
+    username: Optional[str] = None
+    tier: str = "free" # 'free', 'pro'
+    duration_days: Optional[int] = 30 # if pro
+
+class AdminResetPasswordRequest(BaseModel):
+    user_id: int
+    new_password: str
+
 class AdminUpdateUserTierRequest(BaseModel):
     user_id: int
     tier: str # 'free', 'pro'
