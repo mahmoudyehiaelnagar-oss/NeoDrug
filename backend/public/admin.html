@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neo Drug — لوحة تحكم الإدارة والاشتراكات</title>
+<meta name="theme-color" content="#0d9488">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="creative-theme.css">
+<style>
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #0d9488;
+  --accent-strong: #0f766e;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --r: 20px;
+  --font-main: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-main);
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  padding: 20px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.admin-container {
+  width: 100%;
+  max-width: 1100px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: 0 20px 50px -10px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+.admin-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #fff;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.admin-title {
+  font-size: 22px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  padding: 24px 28px 12px;
+}
+.stat-card {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 20px;
+}
+.stat-num {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent-strong);
+}
+.stat-label {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: 4px;
+}
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+.admin-tab-btn {
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.admin-tab-btn.active {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+.tab-content {
+  padding: 24px 28px;
+}
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-top: 14px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right;
+  font-size: 13px;
+}
+th {
+  background: var(--surface-subtle);
+  padding: 12px 16px;
+  font-weight: 700;
+  color: #334155;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+tr:hover td {
+  background: #f8fafc;
+}
+.badge-pro {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.badge-free {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.action-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.15s;
+  margin-left: 4px;
+}
+.action-btn:hover {
+  background: var(--surface-subtle);
+  border-color: var(--accent);
+}
+.action-btn.btn-upgrade {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+.action-btn.btn-downgrade {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+.login-lock-card {
+  max-width: 420px;
+  margin: 60px auto;
+  padding: 32px 28px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+}
+</style>
+</head>
+<body>
+
+<!-- Login Lock Screen -->
+<div id="adminLockScreen" class="login-lock-card">
+  <div style="font-size: 44px; margin-bottom: 12px;">🛡️</div>
+  <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">لوحة تحكم الإدارة والاشتراكات</h2>
+  <p style="font-size: 12.5px; color: var(--muted); margin-bottom: 20px;">يرجى إدخال كلمة مرور الإدارة (Master Key) للوصول للوحة التحكم:</p>
+
+  <input type="password" id="adminKeyInput" placeholder="أدخل كلمة مرور الإدارة..." style="width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 14px; outline: none; box-sizing: border-box;">
+
+  <div id="loginErrorMsg" style="font-size: 12px; color: var(--danger); font-weight: 700; margin-bottom: 12px; display: none;"></div>
+
+  <button class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700;" onclick="handleAdminLogin()">
+    دخول لوحة التحكم 🚀
+  </button>
+  <div style="font-size: 11px; color: var(--muted); margin-top: 14px;">كلمة المرور الافتراضية: <code style="font-family: var(--font-mono); font-weight: 700;">admin2026</code></div>
+</div>
+
+<!-- Main Dashboard Container -->
+<div id="adminDashboard" class="admin-container" style="display: none;">
+  <header class="admin-header">
+    <div>
+      <div class="admin-title">
+        <span>🛡️</span> لوحة إدارة Neo Drug PRO
+      </div>
+      <div style="font-size: 12.5px; opacity: 0.85; margin-top: 2px;">إدارة حسابات المستخدمين، الاشتراكات، وأكواد التفعيل الترويجية</div>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <a href="/index" style="background: rgba(255,255,255,0.15); color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700;">الرئيسية ↗</a>
+      <button onclick="handleAdminLogout()" style="background: #ef4444; color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;">خروج ✕</button>
+    </div>
+  </header>
+
+  <!-- Metrics Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div id="statTotalUsers" class="stat-num">-</div>
+      <div class="stat-label">إجمالي المستخدمين المسجلين</div>
+    </div>
+    <div class="stat-card">
+      <div id="statProUsers" class="stat-num" style="color: #d97706;">-</div>
+      <div class="stat-label">المشتركين في باقة PRO 👑</div>
+    </div>
+    <div class="stat-card">
+      <div id="statTodayAi" class="stat-num" style="color: #0284c7;">-</div>
+      <div class="stat-label">استفسارات وفحوصات اليوم 🤖</div>
+    </div>
+    <div class="stat-card">
+      <div id="statTotalPromos" class="stat-num" style="color: #10b981;">-</div>
+      <div class="stat-label">أكواد التفعيل النشطة 🎁</div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div class="admin-tabs">
+    <button class="admin-tab-btn active" id="tabUsersBtn" onclick="switchAdminTab('users')">👥 إدارة المستخدمين والإيميلات</button>
+    <button class="admin-tab-btn" id="tabPromosBtn" onclick="switchAdminTab('promos')">🎁 توليد وأكواد التفعيل</button>
+  </div>
+
+  <!-- Tab 1: Users Table -->
+  <div id="tabUsersContent" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+      <div style="font-size: 15px; font-weight: 800;">قائمة حسابات المستخدمين:</div>
+      <input type="text" id="userSearchInput" placeholder="بحث بالبريد أو الاسم..." style="padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; width: 220px;" oninput="filterUsersTable()">
+    </div>
+
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>البريد الإلكتروني</th>
+            <th>الاسم</th>
+            <th>الباقة الحالية</th>
+            <th>صلاحية PRO</th>
+            <th>استخدام اليوم</th>
+            <th>إجراءات الترقية والتحكم</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody">
+          <tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--muted);">جاري تحميل المستخدمين...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab 2: Promo Codes Generator -->
+  <div id="tabPromosContent" class="tab-content" style="display: none;">
+    <div style="background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+      <div style="font-size: 14.5px; font-weight: 800; margin-bottom: 12px; color: #0f172a;">إنشاء كود تفعيل ترويجي جديد 🎁</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
+        <div>
+          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">كود التفعيل (English/Upper):</label>
+          <input type="text" id="newPromoCode" placeholder="مثال: PHARMA30" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase;">
+        </div>
+        <div>
+          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">مدة الاشتراك (بالأيام):</label>
+          <input type="number" id="newPromoDuration" value="30" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
+        </div>
+        <div>
+          <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">الحد الأقصى للمستخدمين (فارغ = غير محدود):</label>
+          <input type="number" id="newPromoMaxUses" placeholder="غير محدود" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
+        </div>
+      </div>
+      <button class="btn btn-primary" style="padding: 9px 20px; font-weight: 700;" onclick="handleCreatePromo()">
+        + إنشاء ونشر الكود الآن
+      </button>
+    </div>
+
+    <div style="font-size: 15px; font-weight: 800; margin-bottom: 10px;">أكواد التفعيل المسجلة في النظام:</div>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>الكود الترويجي</th>
+            <th>الباقة الممنوحة</th>
+            <th>المدة (أيام)</th>
+            <th>مرات الاستخدام</th>
+            <th>الحالة</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+        <tbody id="promosTableBody">
+          <tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--muted);">جاري تحميل الأكواد...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let adminKey = localStorage.getItem('NEO_ADMIN_KEY') || '';
+let allUsersCache = [];
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (adminKey) {
+    initDashboard();
+  }
+});
+
+function handleAdminLogin() {
+  const input = document.getElementById('adminKeyInput').value.trim();
+  const errorMsg = document.getElementById('loginErrorMsg');
+  if (!input) {
+    errorMsg.style.display = 'block';
+    errorMsg.textContent = 'يرجى إدخال كلمة المرور.';
+    return;
+  }
+  adminKey = input;
+  localStorage.setItem('NEO_ADMIN_KEY', adminKey);
+  initDashboard();
+}
+
+function handleAdminLogout() {
+  localStorage.removeItem('NEO_ADMIN_KEY');
+  adminKey = '';
+  document.getElementById('adminDashboard').style.display = 'none';
+  document.getElementById('adminLockScreen').style.display = 'block';
+}
+
+async function initDashboard() {
+  try {
+    const statsRes = await fetch('/api/admin/stats', {
+      headers: { 'x-admin-key': adminKey }
+    });
+    if (!statsRes.ok) {
+      throw new Error('كلمة المرور غير صحيحة.');
+    }
+    const stats = await statsRes.json();
+    document.getElementById('adminLockScreen').style.display = 'none';
+    document.getElementById('adminDashboard').style.display = 'block';
+
+    document.getElementById('statTotalUsers').textContent = stats.total_users;
+    document.getElementById('statProUsers').textContent = stats.pro_users;
+    document.getElementById('statTodayAi').textContent = stats.today_ai_queries + stats.today_ocr_scans;
+    document.getElementById('statTotalPromos').textContent = stats.total_promos;
+
+    loadUsers();
+    loadPromos();
+  } catch (err) {
+    const errorMsg = document.getElementById('loginErrorMsg');
+    errorMsg.style.display = 'block';
+    errorMsg.textContent = err.message || 'فشل تسجيل الدخول للإدارة.';
+    localStorage.removeItem('NEO_ADMIN_KEY');
+    adminKey = '';
+  }
+}
+
+async function loadUsers() {
+  try {
+    const res = await fetch('/api/admin/users', {
+      headers: { 'x-admin-key': adminKey }
+    });
+    const users = await res.json();
+    allUsersCache = users;
+    renderUsersTable(users);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('usersTableBody');
+  if (!users || users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--muted);">لا يوجد مستخدمين مسجلين بعد.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map((u, i) => `
+    <tr>
+      <td style="font-family:var(--font-mono); font-weight:700;">${u.id}</td>
+      <td style="font-weight:700;">${escapeHtml(u.email)}</td>
+      <td>${escapeHtml(u.username || '-')}</td>
+      <td>
+        ${u.is_pro ? '<span class="badge-pro">👑 PRO</span>' : '<span class="badge-free">مجاني (Free)</span>'}
+      </td>
+      <td>${u.is_pro ? (u.days_left > 1000 ? 'مدى الحياة ♾️' : `${u.days_left} يوم متبقي`) : '-'}</td>
+      <td style="font-family:var(--font-mono);">${u.today_ai_used + u.today_ocr_used} طلبات</td>
+      <td>
+        <button class="action-btn btn-upgrade" onclick="updateUser(${u.id}, 'pro', 30)">+ 30 يوم PRO</button>
+        <button class="action-btn btn-upgrade" onclick="updateUser(${u.id}, 'pro', 365)">+ سنة PRO</button>
+        <button class="action-btn btn-upgrade" onclick="updateUser(${u.id}, 'pro', 36500)">♾️ مدى الحياة</button>
+        ${u.is_pro ? `<button class="action-btn btn-downgrade" onclick="updateUser(${u.id}, 'free')">إلغاء PRO</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterUsersTable() {
+  const q = document.getElementById('userSearchInput').value.toLowerCase().trim();
+  if (!q) {
+    renderUsersTable(allUsersCache);
+    return;
+  }
+  const filtered = allUsersCache.filter(u =>
+    (u.email && u.email.toLowerCase().includes(q)) ||
+    (u.username && u.username.toLowerCase().includes(q))
+  );
+  renderUsersTable(filtered);
+}
+
+async function updateUser(userId, tier, days = 30) {
+  try {
+    const res = await fetch('/api/admin/users/update-tier', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({ user_id: userId, tier: tier, duration_days: days })
+    });
+    const data = await res.json();
+    alert(data.message || 'تم التحديث بنجاح!');
+    loadUsers();
+    initDashboard();
+  } catch (e) {
+    alert('حدث خطأ: ' + e);
+  }
+}
+
+async function loadPromos() {
+  try {
+    const res = await fetch('/api/admin/promos', {
+      headers: { 'x-admin-key': adminKey }
+    });
+    const promos = await res.json();
+    const tbody = document.getElementById('promosTableBody');
+    if (!promos || promos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">لا توجد أكواد مسجلة.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = promos.map(p => `
+      <tr>
+        <td style="font-family:var(--font-mono); font-weight:800; color:#0284c7;">${p.code}</td>
+        <td><span class="badge-pro">👑 PRO</span></td>
+        <td style="font-family:var(--font-mono); font-weight:700;">${p.duration_days} يوم</td>
+        <td style="font-family:var(--font-mono);">${p.used_count} ${p.max_uses ? `/ ${p.max_uses}` : '(غير محدود)'}</td>
+        <td>${p.is_active ? '<span style="color:#16a34a; font-weight:700;">نشط ✓</span>' : '<span style="color:#dc2626;">معطل ✕</span>'}</td>
+        <td>
+          <button class="action-btn btn-downgrade" onclick="deletePromo(${p.id})">حذف ✕</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function handleCreatePromo() {
+  const code = document.getElementById('newPromoCode').value.trim().toUpperCase();
+  const duration = parseInt(document.getElementById('newPromoDuration').value) || 30;
+  const maxUsesVal = document.getElementById('newPromoMaxUses').value.trim();
+  const maxUses = maxUsesVal ? parseInt(maxUsesVal) : null;
+
+  if (!code) {
+    alert('يرجى إدخال اسم الكود الترويجي.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/promos/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({ code, duration_days: duration, max_uses: maxUses })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'فشل إنشاء الكود');
+    alert('🎉 تم إنشاء الكود الترويجي بنجاح!');
+    document.getElementById('newPromoCode').value = '';
+    loadPromos();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e.message);
+  }
+}
+
+async function deletePromo(id) {
+  if (!confirm('هل أنت متأكد من حذف هذا الكود الترويجي؟')) return;
+  try {
+    const res = await fetch(`/api/admin/promos/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-key': adminKey }
+    });
+    const data = await res.json();
+    alert(data.message || 'تم الحذف.');
+    loadPromos();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e);
+  }
+}
+
+function switchAdminTab(tab) {
+  document.getElementById('tabUsersBtn').classList.toggle('active', tab === 'users');
+  document.getElementById('tabPromosBtn').classList.toggle('active', tab === 'promos');
+  document.getElementById('tabUsersContent').style.display = tab === 'users' ? 'block' : 'none';
+  document.getElementById('tabPromosContent').style.display = tab === 'promos' ? 'block' : 'none';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+}
+</script>
+</body>
+</html>

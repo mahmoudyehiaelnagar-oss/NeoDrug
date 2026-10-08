@@ -775,6 +775,142 @@ def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Dep
         "pro_expires_at": user.pro_expires_at
     }
 
+# --- Admin Management & Control Panel APIs ---
+
+ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY", "admin2026")
+
+def check_admin_permission(request: Request, db: Session):
+    admin_key = request.headers.get("x-admin-key") or request.headers.get("admin-key")
+    if admin_key and admin_key.strip() == ADMIN_MASTER_KEY:
+        return True
+    user = auth.get_current_user_optional(request, db)
+    if user and user.role == "admin":
+        return True
+    raise HTTPException(status_code=403, detail="غير مصرح: كلمة مرور الإدارة غير صحيحة.")
+
+@app.get("/api/admin/stats", response_model=schemas.AdminStatsResponse)
+def get_admin_stats(request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    total_drugs = db.query(models.Drug).count()
+    total_users = db.query(models.User).count()
+    pro_users = db.query(models.User).filter(models.User.tier == "pro").count()
+    free_users = max(0, total_users - pro_users)
+    total_promos = db.query(models.PromoCode).count()
+
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_records = db.query(models.UsageRecord).filter(models.UsageRecord.date_str == today_str).all()
+    today_ai = sum([r.ai_queries_count for r in today_records])
+    today_ocr = sum([r.single_ocr_count + r.dual_ocr_count for r in today_records])
+
+    return {
+        "total_users": total_users,
+        "pro_users": pro_users,
+        "free_users": free_users,
+        "total_promos": total_promos,
+        "today_ai_queries": today_ai,
+        "today_ocr_scans": today_ocr,
+        "total_drugs": total_drugs
+    }
+
+@app.get("/api/admin/users", response_model=list[schemas.AdminUserItem])
+def get_admin_users(request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    users = db.query(models.User).order_by(models.User.id.desc()).all()
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+
+    result = []
+    for u in users:
+        is_pro = (u.tier == "pro" and (not u.pro_expires_at or u.pro_expires_at > datetime.utcnow()))
+        days_left = max(1, (u.pro_expires_at - datetime.utcnow()).days) if (is_pro and u.pro_expires_at) else (9999 if (is_pro and not u.pro_expires_at) else 0)
+
+        usage = db.query(models.UsageRecord).filter(
+            models.UsageRecord.user_id == u.id,
+            models.UsageRecord.date_str == today_str
+        ).first()
+
+        result.append(schemas.AdminUserItem(
+            id=u.id,
+            email=u.email,
+            username=u.username,
+            role=u.role or "user",
+            tier=u.tier or "free",
+            is_pro=is_pro,
+            pro_expires_at=u.pro_expires_at,
+            days_left=days_left,
+            created_at=u.created_at,
+            today_ai_used=usage.ai_queries_count if usage else 0,
+            today_ocr_used=(usage.single_ocr_count + usage.dual_ocr_count) if usage else 0
+        ))
+    return result
+
+@app.post("/api/admin/users/update-tier")
+def update_user_tier(req: schemas.AdminUpdateUserTierRequest, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    user = db.query(models.User).filter(models.User.id == req.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود.")
+
+    if req.tier.lower() == "pro":
+        user.tier = "pro"
+        dur = req.duration_days or 30
+        now = datetime.utcnow()
+        if user.pro_expires_at and user.pro_expires_at > now:
+            user.pro_expires_at = user.pro_expires_at + timedelta(days=dur)
+        else:
+            user.pro_expires_at = now + timedelta(days=dur)
+    else:
+        user.tier = "free"
+        user.pro_expires_at = None
+
+    db.commit()
+    db.refresh(user)
+    return {
+        "success": True,
+        "message": f"تم تحديث باقة المستخدم {user.email} إلى {user.tier.upper()} بنجاح!",
+        "tier": user.tier,
+        "pro_expires_at": user.pro_expires_at
+    }
+
+@app.get("/api/admin/promos", response_model=list[schemas.AdminPromoItem])
+def get_admin_promos(request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    promos = db.query(models.PromoCode).order_by(models.PromoCode.id.desc()).all()
+    return promos
+
+@app.post("/api/admin/promos/create", response_model=schemas.AdminPromoItem)
+def create_admin_promo(req: schemas.AdminCreatePromoRequest, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    code_clean = req.code.strip().upper()
+    if not code_clean:
+        raise HTTPException(status_code=400, detail="كود التفعيل لا يمكن أن يكون فارغاً.")
+
+    existing = db.query(models.PromoCode).filter(models.PromoCode.code == code_clean).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="هذا الكود الترويجي موجود بالفعل.")
+
+    new_promo = models.PromoCode(
+        code=code_clean,
+        tier_granted=req.tier_granted or "pro",
+        duration_days=req.duration_days or 30,
+        max_uses=req.max_uses,
+        is_active=True
+    )
+    db.add(new_promo)
+    db.commit()
+    db.refresh(new_promo)
+    return new_promo
+
+@app.delete("/api/admin/promos/{promo_id}")
+def delete_admin_promo(promo_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    promo = db.query(models.PromoCode).filter(models.PromoCode.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="الكود غير موجود.")
+
+    db.delete(promo)
+    db.commit()
+    return {"success": True, "message": "تم حذف الكود الترويجي بنجاح!"}
+
 @app.post("/api/chat")
 @app.post("/chat")
 def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depends(get_db)):

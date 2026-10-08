@@ -86,3 +86,54 @@ class RedeemResponse(BaseModel):
     tier: str
     duration_days: int
     pro_expires_at: Optional[datetime] = None
+
+# --- Admin Dashboard Schemas ---
+
+class AdminUpdateUserTierRequest(BaseModel):
+    user_id: int
+    tier: str # 'free', 'pro'
+    duration_days: Optional[int] = 30 # For PRO: 30, 90, 365, or 36500 for lifetime
+
+class AdminCreatePromoRequest(BaseModel):
+    code: str
+    duration_days: int = 30
+    max_uses: Optional[int] = None # None = unlimited
+    tier_granted: str = "pro"
+
+class AdminPromoItem(BaseModel):
+    id: int
+    code: str
+    tier_granted: str
+    duration_days: int
+    max_uses: Optional[int] = None
+    used_count: int
+    is_active: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class AdminUserItem(BaseModel):
+    id: int
+    email: str
+    username: Optional[str] = None
+    role: str
+    tier: str
+    is_pro: bool
+    pro_expires_at: Optional[datetime] = None
+    days_left: Optional[int] = None
+    created_at: Optional[datetime] = None
+    today_ai_used: int = 0
+    today_ocr_used: int = 0
+
+    class Config:
+        from_attributes = True
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    pro_users: int
+    free_users: int
+    total_promos: int
+    today_ai_queries: int
+    today_ocr_scans: int
+    total_drugs: int
