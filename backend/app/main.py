@@ -194,44 +194,35 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 "role": "user",
                 "content": user_content
             })
-            model_to_use = "llama-3.2-11b-vision-preview"
         else:
             messages.append({"role": "user", "content": prompt})
-            model_to_use = "llama-3.3-70b-versatile"
 
-        payload = json.dumps({
-            "model": model_to_use,
-            "messages": messages,
-            "max_tokens": max_tokens
-        }).encode('utf-8')
+        models_to_try_groq = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"] if all_images else ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        for m in models_to_try_groq:
+            payload = json.dumps({
+                "model": m,
+                "messages": messages,
+                "max_tokens": max_tokens
+            }).encode('utf-8')
 
-        req = urllib.request.Request(url, data=payload, headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0"
-        })
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                res_data = json.loads(resp.read().decode('utf-8'))
-                return res_data['choices'][0]['message']['content']
-        except Exception as e:
-            if not all_images:
-                try:
-                    payload_fb = json.dumps({
-                        "model": "llama-3.1-8b-instant",
-                        "messages": messages,
-                        "max_tokens": max_tokens
-                    }).encode('utf-8')
-                    req_fb = urllib.request.Request(url, data=payload_fb, headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    })
-                    with urllib.request.urlopen(req_fb, timeout=15) as resp:
-                        res_data = json.loads(resp.read().decode('utf-8'))
-                        return res_data['choices'][0]['message']['content']
-                except Exception:
-                    pass
-            print("Groq call error:", e)
+            req = urllib.request.Request(url, data=payload, headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0"
+            })
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    res_data = json.loads(resp.read().decode('utf-8'))
+                    return res_data['choices'][0]['message']['content']
+            except Exception as e:
+                err_detail = ""
+                if hasattr(e, 'read'):
+                    try:
+                        err_detail = e.read().decode('utf-8')
+                    except Exception:
+                        pass
+                print(f"Groq call error ({m}): {e} {err_detail}")
+                continue
 
     elif api_key.startswith("sk-or-") or api_key.startswith("sk-nry-"):
         url = "https://openrouter.ai/api/v1/chat/completions" if api_key.startswith("sk-or-") else "https://router.bynara.id/v1/chat/completions"
