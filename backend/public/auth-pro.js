@@ -20,7 +20,7 @@
 
   const WHATSAPP_PHONE = '201070142811';
   const DISPLAY_PHONE = '01070142811';
-  const DEFAULT_GOOGLE_CLIENT_ID = '1096005273682-ved543vk8uj22r0185dsapd5qvkfo8te.apps.googleusercontent.com';
+  const DEFAULT_GOOGLE_CLIENT_ID = '632334576806-5gbht30go4rb2gkgcdtpfc1eb35fmiep.apps.googleusercontent.com';
 
   window.authPro = {
     getUser() {
