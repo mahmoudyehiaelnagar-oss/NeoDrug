@@ -1420,3 +1420,4 @@ def serve_static(file_path: str):
     if os.path.isfile(full_path) and os.path.commonpath([full_path, PUBLIC_DIR]) == os.path.abspath(PUBLIC_DIR):
         return FileResponse(full_path)
     return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+# Trigger redeploy
