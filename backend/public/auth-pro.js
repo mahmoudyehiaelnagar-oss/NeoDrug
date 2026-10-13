@@ -67,6 +67,19 @@
     },
 
     initGoogleGSI() {
+      const btnContainer = document.getElementById('googleGsiButtonContainer');
+      if (window.pywebview && btnContainer) {
+        btnContainer.innerHTML = '';
+        const extBtn = document.createElement('button');
+        extBtn.style.cssText = 'width:100%; padding:12px; background:#4285F4; color:#fff; border:none; border-radius:24px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px;';
+        extBtn.innerHTML = '<span>🌐 تسجيل الدخول بحساب Google (فتح المتصفح)</span>';
+        extBtn.onclick = () => {
+          window.open('https://neo-drug.vercel.app/index', '_blank');
+        };
+        btnContainer.appendChild(extBtn);
+        return;
+      }
+
       if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
 
       try {
