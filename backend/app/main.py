@@ -505,36 +505,54 @@ def check_interaction(req: schemas.InteractionRequest, request: Request, db: Ses
     is_ssri = has_any('fluoxetine', 'prozac', 'sertraline', 'lustral', 'moodapex', 'escitalopram', 'cipralex', 'paroxetine', 'seroxat')
     is_tramadol = has_any('tramadol', 'tramal', 'amadol', 'ultram')
 
-    # F. Diabetes & Oncology
+    # F. Diabetes, CNS & Oncology
     is_methotrexate = has_any('methotrexate', 'unitrexate', 'mextra')
+    is_benzodiazepine = has_any('alprazolam', 'xanax', 'diazepam', 'valium', 'lorazepam', 'ativan', 'clonazepam', 'rivotril')
+    is_opioid = has_any('morphine', 'oxycodone', 'pethidine', 'fentanyl', 'codeine', 'tramadol')
+    is_digoxin = has_any('digoxin', 'lanoxin')
+    is_lithium = has_any('lithium', 'lithonate')
+    is_azole = has_any('ketoconazole', 'itraconazole', 'fluconazole', 'diflucan', 'voriconazole')
+    is_alpha_blocker = has_any('doxazosin', 'cardura', 'tamsulosin', 'omnic', 'prazosin', 'terazosin')
 
-    # Rules evaluation
+    # Rules evaluation (Drugs.com Clinical Standards)
     if is_nsaid and (is_warfarin or is_noac):
-        alerts.append("🛑 **تعارض شديد وخطير (مضادات التخثر + NSAID):** الجمع بين مضادات التخثر ومسكنات الالتهاب يضاعف خطر النزيف الهضمي الحاد وقرح المعدة.")
+        alerts.append("🛑 **[Drugs.com - Major] مضادات التخثر + NSAID:** الجمع بين مضادات التخثر ومسكنات الالتهاب يضاعف خطر النزيف الهضمي الحاد وقرح المعدة.")
 
     if is_nsaid and (is_aspirin or is_clopidogrel):
-        alerts.append("🛑 **تعارض شديد (Aspirin/Plavix + NSAID):** يثبط فعالية الأسبرين الوقائية للقلب ويزيد بدرجة عالية من احتمالية التقرحات والنزيف المعوي.")
+        alerts.append("🛑 **[Drugs.com - Major] Aspirin/Plavix + NSAID:** يثبط فعالية الأسبرين الوقائية للقلب ويزيد بدرجة عالية من احتمالية التقرحات والنزيف المعوي.")
 
     if is_nitrate and is_pde5:
-        alerts.append("🛑 **تعارض مميت (Nitrates + أدوية الضعف الجنسي PDE5):** هبوط دوراني حاد وقاتل في ضغط الدم نتيجة توسع الأوعية الدموية المفرط. يمنع تماماً الجمع بينهما.")
+        alerts.append("🛑 **[Drugs.com - Contraindicated] Nitrates + أدوية الضعف الجنسي PDE5:** هبوط دوراني حاد وقاتل في ضغط الدم نتيجة توسع الأوعية الدموية المفرط. يمنع تماماً الجمع بينهما.")
 
     if is_beta_blocker and is_non_dhp_ccb:
-        alerts.append("🛑 **تعارض قلبي حرج (Beta-blocker + Verapamil/Diltiazem):** خطر هبوط شديد في نبضات القلب (Bradycardia) وإحصار أذيني بطيني (Heart Block) وفشل عضلة القلب.")
+        alerts.append("🛑 **[Drugs.com - Major] Beta-blocker + Verapamil/Diltiazem:** خطر هبوط شديد في نبضات القلب (Bradycardia) وإحصار أذيني بطيني (Heart Block) وفشل عضلة القلب.")
 
     if is_potassium_sparing and is_ace_arb:
-        alerts.append("⚠️ **تحذير من ارتفاع البوتاسيوم (Aldactone + ACEi/ARBs):** خطر حدوث فرط بوتاسيوم الدم (Hyperkalemia) الحاد المؤدي لاضطراب كهربية القلب. يتطلب فحص البوتاسيوم ووظائف الكلى.")
+        alerts.append("⚠️ **[Drugs.com - Moderate/Major] Aldactone + ACEi/ARBs:** خطر حدوث فرط بوتاسيوم الدم (Hyperkalemia) الحاد المؤدي لاضطراب كهربية القلب.")
 
-    if is_statin and is_macrolide:
-        alerts.append("⚠️ **تحذير شديد (Statins + Macrolides):** يرفع الكلاريثروميسين من تركيز الستاتين في الدم، مما قد يسبب انحلال العضلات المخططة (Rhabdomyolysis) والفشل الكلوي.")
+    if is_statin and (is_macrolide or is_azole):
+        alerts.append("⚠️ **[Drugs.com - Major] Statins + Macrolides/Azoles:** يرفع المضاد الحيوي أو مضاد الفطريات من تركيز الستاتين في الدم، مما قد يسبب انحلال العضلات المخططة (Rhabdomyolysis).")
 
-    if is_ssri and is_tramadol:
-        alerts.append("⚠️ **خطر متلازمة السيروتونين (SSRIs + Tramadol):** متلازمة سيروتونين حادة (Serotonin Syndrome) تسبب تشنجات، ارتفاع حرارة، واضطراب في الوعي.")
+    if is_ssri and (is_tramadol or has_any('triptan', 'sumatriptan')):
+        alerts.append("⚠️ **[Drugs.com - Major] متلازمة السيروتونين (SSRIs + Tramadol/Triptans):** متلازمة سيروتونين حادة تهدد الحياة تسبب تشنجات وارتفاعاً حاداً في حرارة الجسم.")
 
     if is_quinolone and is_steroid:
-        alerts.append("⚠️ **تحذير حركي (Quinolones + Corticosteroids):** زيادة ملحوظة في خطر تمزق الأوتار العضلية (Tendon Rupture)، خاصة وتر أكيلس لدى كبار السن.")
+        alerts.append("⚠️ **[Drugs.com - Moderate] Quinolones + Corticosteroids:** زيادة ملحوظة في خطر تمزق الأوتار العضلية (Tendon Rupture).")
 
     if is_methotrexate and is_nsaid:
-        alerts.append("🛑 **تعارض سمية حاد (Methotrexate + NSAID):** تخفض المسكنات من إفراز الميثوتريكسات الكلوي، مسببة تسمم نخاع العظم الحاد وانخفاض كريات الدم.")
+        alerts.append("🛑 **[Drugs.com - Major] Methotrexate + NSAID:** تخفض المسكنات من إفراز الميثوتريكسات الكلوي، مسببة تسمم نخاع العظم الحاد وانخفاض كريات الدم.")
+
+    if is_benzodiazepine and is_opioid:
+        alerts.append("🛑 **[Drugs.com - Contraindicated/Major] Benzodiazepines + Opioids:** الجمع بين المهدئات ومسكنات الأفيون يسبب تثبيطاً حاداً للجهاز العصبي المركزي، بطء التنفس، الغيبوبة، أو الوفاة.")
+
+    if is_digoxin and (is_macrolide or has_any('furosemide', 'lasix', 'hydrochlorothiazide')):
+        alerts.append("⚠️ **[Drugs.com - Major] Digoxin + Macrolides/Diuretics:** خطر الإصابة بتسمم الديجوكسين (Digoxin Toxicity) نتيجة اضطراب الكهارل (البوتاسيوم) أو تثبيط الإطراح.")
+
+    if is_lithium and (is_nsaid or is_ace_arb or has_any('thiazide', 'diuretic')):
+        alerts.append("🛑 **[Drugs.com - Major] Lithium + NSAIDs/ACEi/Diuretics:** تقلل هذه الأدوية من طرح الليثيوم الكلوي، مما يؤدي إلى تراكمه في الدم ووصوله لمستويات سامة.")
+
+    if is_alpha_blocker and is_pde5:
+        alerts.append("⚠️ **[Drugs.com - Major] Alpha-blockers + PDE5 Inhibitors:** خطر هبوط ضغط الدم الانتصابي الدوائي (Severe Hypotension and Dizziness) عند الجمع بين أدوية البروستاتا ومقويات الانتصاب.")
 
     # Duplicate therapy check
     found_nsaids = [n for n in nsaids if has_any(n)]
