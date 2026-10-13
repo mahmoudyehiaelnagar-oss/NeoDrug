@@ -789,9 +789,9 @@ def get_me(request: Request, db: Session = Depends(get_db)):
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if user:
-        now_utc = datetime.now(timezone.utc)
-        is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now_utc))
-        days_left = max(1, (user.pro_expires_at - now_utc).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
+        now_naive = datetime.utcnow()
+        is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now_naive))
+        days_left = max(1, (user.pro_expires_at - now_naive).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
         usage = db.query(models.UsageRecord).filter(
             models.UsageRecord.user_id == user.id,
             models.UsageRecord.date_str == today_str

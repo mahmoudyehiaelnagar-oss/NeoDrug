@@ -149,7 +149,7 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -
 
         # Check expiration
         if user.tier == "pro" and user.pro_expires_at:
-            if user.pro_expires_at < datetime.now(timezone.utc):
+            if user.pro_expires_at < datetime.utcnow():
                 user.tier = "free"
                 try:
                     db.commit()
