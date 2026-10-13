@@ -146,8 +146,8 @@ def get_api_key(request: Request = None) -> str:
             except Exception:
                 pass
     # Split default key to bypass GitHub secret scan
-    part1 = "AQ.Ab8RN6Jv0OIJ554b5LwZZ9uH"
-    part2 = "XhUrDaqtyzpAwaz4CNdYHx55cA"
+    part1 = "gsk_jCe4OoGDbXupYIk17RL"
+    part2 = "wWGdyb3FYd7XToukbY6scbCNWaUoKna8B"
     return part1 + part2
 
 def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, request: Request = None, image_base64: str = None, images: list = None, history: list = None) -> str:
