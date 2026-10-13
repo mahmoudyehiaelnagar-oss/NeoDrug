@@ -646,10 +646,15 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
     is_pro = False
     days_left = 0
     if user.tier == "pro":
-        if user.pro_expires_at and user.pro_expires_at > datetime.now(timezone.utc):
+        pro_expires = user.pro_expires_at
+        if pro_expires and pro_expires.tzinfo is None:
+            pro_expires = pro_expires.replace(tzinfo=timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+
+        if pro_expires and pro_expires > now_utc:
             is_pro = True
-            days_left = max(1, (user.pro_expires_at - datetime.now(timezone.utc)).days)
-        elif not user.pro_expires_at:
+            days_left = max(1, (pro_expires - now_utc).days)
+        elif not pro_expires:
             is_pro = True
             days_left = 9999
         else:
@@ -738,10 +743,15 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
     is_pro = False
     days_left = 0
     if user.tier == "pro":
-        if user.pro_expires_at and user.pro_expires_at > datetime.now(timezone.utc):
+        pro_expires = user.pro_expires_at
+        if pro_expires and pro_expires.tzinfo is None:
+            pro_expires = pro_expires.replace(tzinfo=timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+
+        if pro_expires and pro_expires > now_utc:
             is_pro = True
-            days_left = max(1, (user.pro_expires_at - datetime.now(timezone.utc)).days)
-        elif not user.pro_expires_at:
+            days_left = max(1, (pro_expires - now_utc).days)
+        elif not pro_expires:
             is_pro = True
             days_left = 9999
         else:
