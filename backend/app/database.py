@@ -21,9 +21,14 @@ if os.getenv("VERCEL"):
                 fcntl.flock(f, fcntl.LOCK_EX)
                 if not os.path.exists(TMP_DB_PATH):
                     shutil.copy2(ORIGINAL_DB_PATH, TMP_DB_PATH)
+                    os.chmod(TMP_DB_PATH, 0o666)
                 fcntl.flock(f, fcntl.LOCK_UN)
         except Exception as e:
             print(f"Error copying DB to /tmp: {e}")
+    try:
+        os.chmod(TMP_DB_PATH, 0o666)
+    except Exception:
+        pass
     DB_PATH = TMP_DB_PATH
 else:
     DB_PATH = ORIGINAL_DB_PATH
