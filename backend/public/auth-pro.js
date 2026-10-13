@@ -36,6 +36,7 @@
       currentUser = window.api.getCachedUser();
       this.injectHeaderWidget();
       this.injectModal();
+      this.injectFooterCredit();
       this.updateUserUI(currentUser);
       this.loadGoogleSDK();
 
@@ -166,6 +167,18 @@
         widget.appendChild(btn);
         widget.appendChild(userMenuBtn);
         bar.appendChild(widget);
+      });
+    },
+
+    injectFooterCredit() {
+      const containers = document.querySelectorAll('.app-container, main, body');
+      containers.forEach(container => {
+        if (container.querySelector('.developer-credit')) return;
+        const credit = document.createElement('div');
+        credit.className = 'developer-credit';
+        credit.style.cssText = 'text-align:center; padding:16px; font-size:12px; color:var(--muted); border-top:1px dashed var(--border); margin-top:auto; width:100%; font-weight:600; grid-column: 1 / -1;';
+        credit.innerHTML = '✨ تم التصميم والتطوير بواسطة العبد الفقير لله محمود النجار 🩺';
+        container.appendChild(credit);
       });
     },
 
