@@ -591,8 +591,9 @@ def check_interaction(req: schemas.InteractionRequest, request: Request, db: Ses
 @app.post("/api/auth/register", response_model=schemas.AuthResponse)
 def register(req: schemas.RegisterRequest, db: Session = Depends(get_db)):
     email_clean = req.email.strip().lower()
-    if not email_clean or "@" not in email_clean:
-        raise HTTPException(status_code=400, detail="يرجى إدخال بريد إلكتروني صحيح.")
+    email_regex = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+    if not email_clean or "@" not in email_clean or not re.match(email_regex, email_clean):
+        raise HTTPException(status_code=400, detail="يرجى إدخال بريد إلكتروني صحيح وموثوق (مثال: name@gmail.com).")
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="كلمة المرور يجب أن لا تقل عن 6 أحرف.")
 
