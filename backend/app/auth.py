@@ -106,7 +106,10 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -
     jwt_pro_exp = None
     if exp_str:
         try:
-            jwt_pro_exp = datetime.fromisoformat(exp_str)
+            parsed_exp = datetime.fromisoformat(exp_str)
+            if parsed_exp.tzinfo is not None:
+                parsed_exp = parsed_exp.astimezone(timezone.utc).replace(tzinfo=None)
+            jwt_pro_exp = parsed_exp
         except Exception:
             pass
 
