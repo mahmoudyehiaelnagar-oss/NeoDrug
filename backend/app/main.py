@@ -789,8 +789,9 @@ def get_me(request: Request, db: Session = Depends(get_db)):
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if user:
-        is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > datetime.utcnow()))
-        days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
+        now_utc = datetime.now(timezone.utc)
+        is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now_utc))
+        days_left = max(1, (user.pro_expires_at - now_utc).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
         usage = db.query(models.UsageRecord).filter(
             models.UsageRecord.user_id == user.id,
             models.UsageRecord.date_str == today_str
@@ -1100,8 +1101,10 @@ def edit_user_full(req: schemas.AdminEditUserFullRequest, request: Request, db: 
     db.commit()
     db.refresh(user)
 
-    is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > datetime.utcnow()))
-    days_left = (user.pro_expires_at - datetime.utcnow()).days if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
+    # Fix is_pro and days_left calculations in Admin
+    now = datetime.now(timezone.utc)
+    is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now))
+    days_left = (user.pro_expires_at - now).days if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
 
     return {
         "success": True,
