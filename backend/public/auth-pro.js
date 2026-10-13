@@ -341,7 +341,7 @@
                 <div id="googleGsiButtonContainer" style="display:flex; justify-content:center; margin-bottom:8px;"></div>
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px;">
                   <div style="display:flex; gap:6px;">
-                    <input type="email" id="googleEmailInput" placeholder="أو اكتب بريدك Gmail للدخول الفوري..." style="flex:1; padding:7px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; outline:none; box-sizing:border-box;" onkeypress="if(event.key==='Enter') window.authPro.signInWithGoogleInput()">
+                    <input type="text" id="googleEmailInput" placeholder="أو اكتب بريدك Gmail للدخول الفوري..." style="flex:1; padding:7px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; outline:none; box-sizing:border-box;" onkeypress="if(event.key==='Enter') window.authPro.signInWithGoogleInput()">
                     <button type="button" class="btn btn-primary" style="padding:7px 14px; font-size:12px; font-weight:700; border-radius:8px; white-space:nowrap;" onclick="window.authPro.signInWithGoogleInput()">
                       دخول سريع 🌐
                     </button>
@@ -363,7 +363,7 @@
 
               <div style="margin-bottom:10px;">
                 <label style="display:block; font-size:11.5px; font-weight:700; color:#475569; margin-bottom:4px;">البريد الإلكتروني:</label>
-                <input type="email" id="authEmailInput" placeholder="name@example.com" style="width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; outline:none; box-sizing:border-box;">
+                <input type="text" id="authEmailInput" placeholder="name@example.com" style="width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; outline:none; box-sizing:border-box;">
               </div>
 
               <div style="margin-bottom:14px;">
