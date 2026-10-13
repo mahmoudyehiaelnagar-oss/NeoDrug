@@ -122,7 +122,7 @@ def get_api_key(request: Request = None) -> str:
         if client_key and client_key.strip():
             return client_key.strip()
 
-    env_key = os.getenv("API_KEY") or os.getenv("GEMINI_API_KEY")
+    env_key = os.getenv("API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY")
     if env_key and env_key.strip():
         return env_key.strip()
 
