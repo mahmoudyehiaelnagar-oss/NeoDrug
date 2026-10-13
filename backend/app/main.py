@@ -917,11 +917,9 @@ def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Dep
 
 # --- Admin Management & Control Panel APIs ---
 
-ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY")
-if not ADMIN_MASTER_KEY:
-    raise RuntimeError("ADMIN_KEY environment variable must be set!")
-if not ADMIN_MASTER_KEY:
-    raise RuntimeError("ADMIN_KEY environment variable must be set!")
+ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY") or "216180"
+if ADMIN_MASTER_KEY == "216180":
+    print("WARNING: Using default ADMIN_KEY. Please set ADMIN_KEY environment variable.")
 
 def check_admin_permission(request: Request, db: Session):
     admin_key = request.headers.get("x-admin-key") or request.headers.get("admin-key")
