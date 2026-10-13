@@ -10,20 +10,39 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ORIGINAL_DB_PATH = os.path.join(BASE_DIR, "public", "drugs_database.db")
 
-# If running on Vercel (Read-Only filesystem), copy the DB to /tmp which is writable
-if os.getenv("VERCEL"):
+# If running on Vercel / Lambda (Read-Only filesystem), copy the DB to /tmp which is writable
+is_read_only_env = bool(
+    os.getenv("VERCEL")
+    or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+    or os.path.exists("/var/task")
+    or not os.access(os.path.dirname(ORIGINAL_DB_PATH) if os.path.exists(ORIGINAL_DB_PATH) else ".", os.W_OK)
+)
+
+if is_read_only_env:
     TMP_DB_PATH = "/tmp/drugs_database.db"
     LOCK_PATH = "/tmp/drugs_database.lock"
-    # Use file locking to prevent concurrent copy attempts
-    if not os.path.exists(TMP_DB_PATH):
+
+    candidate_sources = [
+        ORIGINAL_DB_PATH,
+        "/var/task/public/drugs_database.db",
+        "/var/task/backend/public/drugs_database.db",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "drugs_database.db")
+    ]
+    actual_source = next((c for c in candidate_sources if os.path.exists(c)), ORIGINAL_DB_PATH)
+
+    if not os.path.exists(TMP_DB_PATH) or os.path.getsize(TMP_DB_PATH) == 0:
         try:
             with open(LOCK_PATH, "w") as f:
                 fcntl.flock(f, fcntl.LOCK_EX)
-                if not os.path.exists(TMP_DB_PATH):
-                    shutil.copyfile(ORIGINAL_DB_PATH, TMP_DB_PATH)
+                if not os.path.exists(TMP_DB_PATH) or os.path.getsize(TMP_DB_PATH) == 0:
+                    shutil.copyfile(actual_source, TMP_DB_PATH)
                 fcntl.flock(f, fcntl.LOCK_UN)
         except Exception as e:
             print(f"Error copying DB to /tmp: {e}")
+            try:
+                shutil.copyfile(actual_source, TMP_DB_PATH)
+            except Exception:
+                pass
     try:
         os.chmod(TMP_DB_PATH, 0o777)
     except Exception:
