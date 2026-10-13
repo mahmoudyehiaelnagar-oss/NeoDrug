@@ -647,10 +647,12 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
     days_left = 0
     if user.tier == "pro":
         pro_expires = user.pro_expires_at
+        # Force timezone.utc if it's naive
         if pro_expires and pro_expires.tzinfo is None:
             pro_expires = pro_expires.replace(tzinfo=timezone.utc)
-        now_utc = datetime.now(timezone.utc)
 
+        # Consistent comparison using UTC
+        now_utc = datetime.now(timezone.utc)
         if pro_expires and pro_expires > now_utc:
             is_pro = True
             days_left = max(1, (pro_expires - now_utc).days)
@@ -744,10 +746,12 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
     days_left = 0
     if user.tier == "pro":
         pro_expires = user.pro_expires_at
+        # Force timezone.utc if it's naive
         if pro_expires and pro_expires.tzinfo is None:
             pro_expires = pro_expires.replace(tzinfo=timezone.utc)
-        now_utc = datetime.now(timezone.utc)
 
+        # Consistent comparison using UTC
+        now_utc = datetime.now(timezone.utc)
         if pro_expires and pro_expires > now_utc:
             is_pro = True
             days_left = max(1, (pro_expires - now_utc).days)
