@@ -171,15 +171,12 @@
     },
 
     injectFooterCredit() {
-      const containers = document.querySelectorAll('.app-container, main, body');
-      containers.forEach(container => {
-        if (container.querySelector('.developer-credit')) return;
-        const credit = document.createElement('div');
-        credit.className = 'developer-credit';
-        credit.style.cssText = 'text-align:center; padding:16px; font-size:12px; color:var(--muted); border-top:1px dashed var(--border); margin-top:auto; width:100%; font-weight:600; grid-column: 1 / -1;';
-        credit.innerHTML = '✨ تم التصميم والتطوير بواسطة العبد الفقير لله محمود النجار 🩺';
-        container.appendChild(credit);
-      });
+      if (document.getElementById('developerCornerBadge')) return;
+      const badge = document.createElement('div');
+      badge.id = 'developerCornerBadge';
+      badge.style.cssText = 'position: fixed; bottom: 12px; left: 12px; z-index: 99999; background: var(--surface, #fff); padding: 6px 12px; border-radius: 20px; font-size: 11px; border: 1px solid var(--border, #eaeaea); box-shadow: 0 4px 12px rgba(0,0,0,0.08); color: var(--muted, #666); font-weight: 600; pointer-events: none; font-family: var(--font-main);';
+      badge.innerHTML = '✨ تصميم: محمود النجار';
+      document.body.appendChild(badge);
     },
 
     updateUserUI(user) {
