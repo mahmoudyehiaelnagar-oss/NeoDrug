@@ -342,7 +342,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
         payload = json.dumps(req_dict).encode('utf-8')
 
         # Use the ultra-fast, verified gemini-3.5-flash-lite model with multi-part text extraction
-        models_to_try = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
+        models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
         for m in models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
