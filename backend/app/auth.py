@@ -5,7 +5,7 @@ import base64
 import hmac
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from fastapi import Request, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -149,10 +149,7 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -
 
         # Check expiration
         if user.tier == "pro" and user.pro_expires_at:
-            pro_expires = user.pro_expires_at
-            if pro_expires.tzinfo is None:
-                pro_expires = pro_expires.replace(tzinfo=timezone.utc)
-            if pro_expires < datetime.now(timezone.utc):
+            if user.pro_expires_at < datetime.utcnow():
                 user.tier = "free"
                 try:
                     db.commit()

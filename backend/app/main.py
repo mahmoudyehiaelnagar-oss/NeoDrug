@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 import os
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from sqlalchemy import or_
 
 from . import models, schemas, auth, limiter
@@ -646,17 +646,10 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
     is_pro = False
     days_left = 0
     if user.tier == "pro":
-        pro_expires = user.pro_expires_at
-        # Force timezone.utc if it's naive
-        if pro_expires and pro_expires.tzinfo is None:
-            pro_expires = pro_expires.replace(tzinfo=timezone.utc)
-
-        # Consistent comparison using UTC
-        now_utc = datetime.now(timezone.utc)
-        if pro_expires and pro_expires > now_utc:
+        if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
             is_pro = True
-            days_left = max(1, (pro_expires - now_utc).days)
-        elif not pro_expires:
+            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
+        elif not user.pro_expires_at:
             is_pro = True
             days_left = 9999
         else:
@@ -672,7 +665,7 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
         "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
     })
 
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
     usage = db.query(models.UsageRecord).filter(
         models.UsageRecord.user_id == user.id,
         models.UsageRecord.date_str == today_str
@@ -745,17 +738,10 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
     is_pro = False
     days_left = 0
     if user.tier == "pro":
-        pro_expires = user.pro_expires_at
-        # Force timezone.utc if it's naive
-        if pro_expires and pro_expires.tzinfo is None:
-            pro_expires = pro_expires.replace(tzinfo=timezone.utc)
-
-        # Consistent comparison using UTC
-        now_utc = datetime.now(timezone.utc)
-        if pro_expires and pro_expires > now_utc:
+        if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
             is_pro = True
-            days_left = max(1, (pro_expires - now_utc).days)
-        elif not pro_expires:
+            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
+        elif not user.pro_expires_at:
             is_pro = True
             days_left = 9999
         else:
@@ -771,7 +757,7 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
         "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
     })
 
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
     usage = db.query(models.UsageRecord).filter(
         models.UsageRecord.user_id == user.id,
         models.UsageRecord.date_str == today_str
@@ -800,7 +786,7 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
 def get_me(request: Request, db: Session = Depends(get_db)):
     client_ip = limiter.get_client_ip(request)
     user = auth.get_current_user_optional(request, db)
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
     if user:
         now_naive = datetime.utcnow()
@@ -954,7 +940,7 @@ def get_admin_stats(request: Request, db: Session = Depends(get_db)):
     free_users = max(0, total_users - pro_users)
     total_promos = db.query(models.PromoCode).count()
 
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
     today_records = db.query(models.UsageRecord).filter(models.UsageRecord.date_str == today_str).all()
     today_ai = sum([r.ai_queries_count for r in today_records])
     today_ocr = sum([r.single_ocr_count + r.dual_ocr_count for r in today_records])
@@ -973,7 +959,7 @@ def get_admin_stats(request: Request, db: Session = Depends(get_db)):
 def get_admin_users(request: Request, db: Session = Depends(get_db)):
     check_admin_permission(request, db)
     users = db.query(models.User).order_by(models.User.id.desc()).all()
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
     result = []
     for u in users:
@@ -1116,7 +1102,7 @@ def edit_user_full(req: schemas.AdminEditUserFullRequest, request: Request, db: 
     db.refresh(user)
 
     # Fix is_pro and days_left calculations in Admin
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now))
     days_left = (user.pro_expires_at - now).days if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
 

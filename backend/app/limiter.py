@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional, Tuple, Dict, Any
 from sqlalchemy.orm import Session
 from fastapi import Request
@@ -17,7 +17,7 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 def get_or_create_usage(db: Session, user: Optional[models.User], client_ip: str) -> models.UsageRecord:
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
     if user:
         record = db.query(models.UsageRecord).filter(
@@ -65,8 +65,8 @@ def get_or_create_usage(db: Session, user: Optional[models.User], client_ip: str
 def check_feature_access(db: Session, user: Optional[models.User], feature: str, client_ip: str) -> Tuple[bool, Dict[str, Any]]:
     # 1. Check if user has active PRO subscription
     if user and user.tier == "pro":
-        if not user.pro_expires_at or user.pro_expires_at > datetime.now(timezone.utc):
-            days_left = max(1, (user.pro_expires_at - datetime.now(timezone.utc)).days) if user.pro_expires_at else 9999
+        if not user.pro_expires_at or user.pro_expires_at > datetime.utcnow():
+            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days) if user.pro_expires_at else 9999
             return True, {"tier": "pro", "unlimited": True, "days_left": days_left}
         else:
             user.tier = "free"
