@@ -1,5 +1,6 @@
 import os
 import shutil
+import fcntl
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
@@ -12,10 +13,15 @@ ORIGINAL_DB_PATH = os.path.join(BASE_DIR, "public", "drugs_database.db")
 # If running on Vercel (Read-Only filesystem), copy the DB to /tmp which is writable
 if os.getenv("VERCEL"):
     TMP_DB_PATH = "/tmp/drugs_database.db"
-    # Copy only if it doesn't exist to speed up warm starts
+    LOCK_PATH = "/tmp/drugs_database.lock"
+    # Use file locking to prevent concurrent copy attempts
     if not os.path.exists(TMP_DB_PATH):
         try:
-            shutil.copy2(ORIGINAL_DB_PATH, TMP_DB_PATH)
+            with open(LOCK_PATH, "w") as f:
+                fcntl.flock(f, fcntl.LOCK_EX)
+                if not os.path.exists(TMP_DB_PATH):
+                    shutil.copy2(ORIGINAL_DB_PATH, TMP_DB_PATH)
+                fcntl.flock(f, fcntl.LOCK_UN)
         except Exception as e:
             print(f"Error copying DB to /tmp: {e}")
     DB_PATH = TMP_DB_PATH

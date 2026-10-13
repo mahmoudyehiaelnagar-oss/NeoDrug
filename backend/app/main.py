@@ -7,18 +7,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 import os
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import or_
 
 from . import models, schemas, auth, limiter
-from .database import engine, get_db
+from .database import engine, get_db, SessionLocal
 
 # Create any missing tables safely without touching existing drugs table
 models.Base.metadata.create_all(bind=engine)
 
 # Seed default promo codes
 try:
-    with next(get_db()) as db_session:
+    with SessionLocal() as db_session:
         limiter.seed_default_promo_codes(db_session)
 except Exception as _e:
     pass
@@ -632,36 +632,23 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
 
     user = db.query(models.User).filter(models.User.email == email_clean).first()
     if not user:
-        # Serverless Container Sync: Auto-provision account on login with provided credentials
-        pwd_hash = auth.hash_password(req.password)
-        user = models.User(
-            email=email_clean,
-            username=email_clean.split("@")[0],
-            password_hash=pwd_hash,
-            tier="free"
-        )
-        db.add(user)
-        try:
-            db.commit()
-            db.refresh(user)
-        except Exception:
-            db.rollback()
-            user = db.query(models.User).filter(models.User.email == email_clean).first()
+        raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
     else:
         # If user exists, verify password or sync if password was reset
-        if user.password_hash != "verified_jwt_session" and not auth.verify_password(req.password, user.password_hash):
-            if len(req.password) >= 6 and user.password_hash == "verified_jwt_session":
-                user.password_hash = auth.hash_password(req.password)
-                db.commit()
-            else:
-                raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
+        if auth.verify_password(req.password, user.password_hash):
+            pass
+        elif user.password_hash == "verified_jwt_session" and len(req.password) >= 6:
+            user.password_hash = auth.hash_password(req.password)
+            db.commit()
+        else:
+            raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
 
     is_pro = False
     days_left = 0
     if user.tier == "pro":
-        if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
+        if user.pro_expires_at and user.pro_expires_at > datetime.now(timezone.utc):
             is_pro = True
-            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
+            days_left = max(1, (user.pro_expires_at - datetime.now(timezone.utc)).days)
         elif not user.pro_expires_at:
             is_pro = True
             days_left = 9999
@@ -678,7 +665,7 @@ def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
         "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
     })
 
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     usage = db.query(models.UsageRecord).filter(
         models.UsageRecord.user_id == user.id,
         models.UsageRecord.date_str == today_str
@@ -751,9 +738,9 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
     is_pro = False
     days_left = 0
     if user.tier == "pro":
-        if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
+        if user.pro_expires_at and user.pro_expires_at > datetime.now(timezone.utc):
             is_pro = True
-            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
+            days_left = max(1, (user.pro_expires_at - datetime.now(timezone.utc)).days)
         elif not user.pro_expires_at:
             is_pro = True
             days_left = 9999
@@ -770,7 +757,7 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
         "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
     })
 
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     usage = db.query(models.UsageRecord).filter(
         models.UsageRecord.user_id == user.id,
         models.UsageRecord.date_str == today_str
@@ -799,7 +786,7 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
 def get_me(request: Request, db: Session = Depends(get_db)):
     client_ip = limiter.get_client_ip(request)
     user = auth.get_current_user_optional(request, db)
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if user:
         is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > datetime.utcnow()))
@@ -930,7 +917,11 @@ def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Dep
 
 # --- Admin Management & Control Panel APIs ---
 
-ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY", "216180")
+ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY")
+if not ADMIN_MASTER_KEY:
+    raise RuntimeError("ADMIN_KEY environment variable must be set!")
+if not ADMIN_MASTER_KEY:
+    raise RuntimeError("ADMIN_KEY environment variable must be set!")
 
 def check_admin_permission(request: Request, db: Session):
     admin_key = request.headers.get("x-admin-key") or request.headers.get("admin-key")
@@ -950,7 +941,7 @@ def get_admin_stats(request: Request, db: Session = Depends(get_db)):
     free_users = max(0, total_users - pro_users)
     total_promos = db.query(models.PromoCode).count()
 
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     today_records = db.query(models.UsageRecord).filter(models.UsageRecord.date_str == today_str).all()
     today_ai = sum([r.ai_queries_count for r in today_records])
     today_ocr = sum([r.single_ocr_count + r.dual_ocr_count for r in today_records])
@@ -969,7 +960,7 @@ def get_admin_stats(request: Request, db: Session = Depends(get_db)):
 def get_admin_users(request: Request, db: Session = Depends(get_db)):
     check_admin_permission(request, db)
     users = db.query(models.User).order_by(models.User.id.desc()).all()
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     result = []
     for u in users:
@@ -1422,10 +1413,10 @@ def serve_static(file_path: str):
     # Support extensionless HTML serving
     if not file_path.endswith('.html') and '.' not in file_path:
         html_path = os.path.abspath(os.path.join(PUBLIC_DIR, f"{file_path}.html"))
-        if os.path.isfile(html_path):
+        if os.path.isfile(html_path) and os.path.commonpath([html_path, PUBLIC_DIR]) == os.path.abspath(PUBLIC_DIR):
             return FileResponse(html_path)
 
     full_path = os.path.abspath(os.path.join(PUBLIC_DIR, file_path))
-    if os.path.isfile(full_path):
+    if os.path.isfile(full_path) and os.path.commonpath([full_path, PUBLIC_DIR]) == os.path.abspath(PUBLIC_DIR):
         return FileResponse(full_path)
     return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
