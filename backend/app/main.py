@@ -314,8 +314,8 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
             for img in all_images:
                 clean_b64 = re.sub(r'^data:image\/[a-zA-Z0-9\.\+_\-]+;base64,', '', str(img).strip())
                 current_parts.append({
-                    "inline_data": {
-                        "mime_type": "image/jpeg",
+                    "inlineData": {
+                        "mimeType": "image/jpeg",
                         "data": clean_b64
                     }
                 })
