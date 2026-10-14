@@ -289,12 +289,12 @@ tr:hover td {
   <div id="tabUsersContent" class="tab-content">
 
     <!-- Add New User Form & Quick Delete by Email -->
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 20px;">
+    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; margin-bottom: 20px;">
       <!-- Add User Form -->
       <div class="form-box" style="margin-bottom: 0;">
         <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; color: #0f172a;">+ إضافة أو تسجيل حساب مستخدم جديد:</div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px;">
-          <input type="email" id="newUserEmail" placeholder="البريد الإلكتروني..." style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;">
+          <input type="text" id="newUserEmail" placeholder="البريد الإلكتروني..." style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;">
           <input type="text" id="newUserPassword" placeholder="كلمة المرور..." style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;">
           <input type="text" id="newUserName" placeholder="الاسم (اختياري)..." style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;">
           <select id="newUserTier" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-size: 12.5px;">
@@ -309,12 +309,26 @@ tr:hover td {
         </button>
       </div>
 
+      <!-- Quick Upgrade by Email -->
+      <div class="form-box" style="margin-bottom: 0; background: #f0fdf4; border-color: #86efac;">
+        <div style="font-size: 13.5px; font-weight: 800; margin-bottom: 8px; color: #166534;">👑 ترقية إيميل لـ PRO فوراً:</div>
+        <input type="text" id="upgradeEmailInput" placeholder="اكتب البريد الإلكتروني..." style="width: 100%; padding: 8px 10px; border: 1px solid #86efac; border-radius: 8px; font-size: 12px; margin-bottom: 6px; box-sizing: border-box;">
+        <select id="upgradeEmailDuration" style="width: 100%; padding: 6px 10px; border: 1px solid #86efac; border-radius: 8px; background: #fff; font-size: 12px; margin-bottom: 8px;">
+          <option value="30">30 يوم</option>
+          <option value="365">سنة كاملة</option>
+          <option value="36500">مدى الحياة (♾️)</option>
+        </select>
+        <button class="btn" style="width: 100%; background: #16a34a; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer;" onclick="handleQuickUpgradeEmail()">
+          ترقية هذا الإيميل 👑
+        </button>
+      </div>
+
       <!-- Quick Delete by Email -->
       <div class="form-box" style="margin-bottom: 0; background: #fff1f2; border-color: #fecdd3;">
-        <div style="font-size: 13.5px; font-weight: 800; margin-bottom: 8px; color: #9f1239;">🗑️ حذف حساب بواسطة الإيميل:</div>
-        <input type="email" id="deleteEmailInput" placeholder="اكتب البريد الإلكتروني للحذف..." style="width: 100%; padding: 8px 10px; border: 1px solid #fda4af; border-radius: 8px; font-size: 12px; margin-bottom: 8px; box-sizing: border-box;">
+        <div style="font-size: 13.5px; font-weight: 800; margin-bottom: 8px; color: #9f1239;">🗑️ حذف حساب بالإيميل:</div>
+        <input type="text" id="deleteEmailInput" placeholder="اكتب البريد الإلكتروني للحذف..." style="width: 100%; padding: 8px 10px; border: 1px solid #fda4af; border-radius: 8px; font-size: 12px; margin-bottom: 8px; box-sizing: border-box;">
         <button class="btn" style="width: 100%; background: #e11d48; color: #fff; border: none; padding: 8px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer;" onclick="handleQuickDeleteEmail()">
-          حذف هذا الإيميل نهائياً ✕
+          حذف نهائياً ✕
         </button>
       </div>
     </div>
@@ -698,6 +712,35 @@ async function handleCreateUser() {
     document.getElementById('newUserEmail').value = '';
     document.getElementById('newUserPassword').value = '';
     document.getElementById('newUserName').value = '';
+    loadUsers();
+    initDashboard();
+  } catch (e) {
+    alert('خطأ: ' + e.message);
+  }
+}
+
+async function handleQuickUpgradeEmail() {
+  const email = document.getElementById('upgradeEmailInput').value.trim().toLowerCase();
+  const duration = parseInt(document.getElementById('upgradeEmailDuration').value) || 30;
+
+  if (!email || !email.includes('@')) {
+    alert('يرجى إدخال بريد إلكتروني صحيح.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/users/upgrade-by-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': adminKey
+      },
+      body: JSON.stringify({ email: email, duration_days: duration, tier: 'pro' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'فشل الترقية');
+    alert('🎉 ' + data.message);
+    document.getElementById('upgradeEmailInput').value = '';
     loadUsers();
     initDashboard();
   } catch (e) {

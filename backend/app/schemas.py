@@ -123,6 +123,11 @@ class AdminEditUserFullRequest(BaseModel):
     duration_days: Optional[int] = None
     reset_usage: Optional[bool] = False
 
+class AdminUpgradeByEmailRequest(BaseModel):
+    email: str
+    duration_days: Optional[int] = 30
+    tier: Optional[str] = "pro"
+
 class AdminDeleteByEmailRequest(BaseModel):
     email: str
 

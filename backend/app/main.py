@@ -1240,6 +1240,55 @@ def update_user_tier(req: schemas.AdminUpdateUserTierRequest, request: Request, 
         "whatsapp_message": wa_msg
     }
 
+@app.post("/api/admin/users/upgrade-by-email")
+def upgrade_user_by_email(req: schemas.AdminUpgradeByEmailRequest, request: Request, db: Session = Depends(get_db)):
+    check_admin_permission(request, db)
+    email_clean = req.email.strip().lower()
+    if not email_clean or "@" not in email_clean:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني غير صحيح.")
+
+    user = db.query(models.User).filter(models.User.email == email_clean).first()
+    dur = req.duration_days or 30
+    tier_val = req.tier.lower() if req.tier else "pro"
+
+    if not user:
+        user = models.User(
+            email=email_clean,
+            username=email_clean.split("@")[0],
+            password_hash=auth.hash_password("123456"),
+            tier=tier_val,
+            pro_expires_at=None if dur >= 30000 else datetime.utcnow() + timedelta(days=dur)
+        )
+        db.add(user)
+    else:
+        user.tier = tier_val
+        if tier_val == "pro":
+            if dur >= 30000:
+                user.pro_expires_at = None
+            else:
+                now = datetime.utcnow()
+                if user.pro_expires_at and user.pro_expires_at > now:
+                    user.pro_expires_at = user.pro_expires_at + timedelta(days=dur)
+                else:
+                    user.pro_expires_at = now + timedelta(days=dur)
+        else:
+            user.pro_expires_at = None
+
+    try:
+        db.commit()
+        db.refresh(user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {
+        "success": True,
+        "message": f"تم تفعيل باقة {tier_val.upper()} بنجاح للبريد {email_clean}! يمكن للمستخدم تسجيل الدخول الآن.",
+        "email": user.email,
+        "tier": user.tier,
+        "pro_expires_at": user.pro_expires_at
+    }
+
 @app.get("/api/admin/promos", response_model=list[schemas.AdminPromoItem])
 def get_admin_promos(request: Request, db: Session = Depends(get_db)):
     check_admin_permission(request, db)
