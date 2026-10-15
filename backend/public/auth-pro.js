@@ -75,15 +75,39 @@
         extBtn.style.cssText = 'width:100%; padding:12px; background:#4285F4; color:#fff; border:none; border-radius:24px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px;';
         extBtn.innerHTML = '<span>🌐 تسجيل الدخول بحساب Google (فتح المتصفح)</span>';
         extBtn.onclick = () => {
+          const authUrl = 'https://neo-drug.vercel.app/index?desktop_bridge=1';
           if (window.pywebview && window.pywebview.api && window.pywebview.api.open_external) {
             try {
-              window.pywebview.api.open_external('https://neo-drug.vercel.app/index');
+              window.pywebview.api.open_external(authUrl);
             } catch (err) {
-              window.open('https://neo-drug.vercel.app/index', '_blank');
+              window.open(authUrl, '_blank');
             }
           } else {
-            window.open('https://neo-drug.vercel.app/index', '_blank');
+            window.open(authUrl, '_blank');
           }
+
+          const msg = document.getElementById('authMsg');
+          if (msg) {
+            msg.style.display = 'block';
+            msg.style.color = '#0284c7';
+            msg.textContent = 'تم فتح المتصفح لتسجيل الدخول.. في انتظار إتمام العملية ⏳';
+          }
+
+          if (this._bridgeInterval) clearInterval(this._bridgeInterval);
+          this._bridgeInterval = setInterval(async () => {
+            const token = await window.api.checkDesktopBridge();
+            if (token) {
+              clearInterval(this._bridgeInterval);
+              window.api.setAuthToken(token);
+              currentUser = await window.api.getMe();
+              this.updateUserUI(currentUser);
+              if (msg) {
+                msg.style.color = '#15803d';
+                msg.textContent = '🎉 تم الاتصال بالحساب ومزامنته مع التطبيق بنجاح!';
+              }
+              setTimeout(() => { this.closeModal(); }, 1200);
+            }
+          }, 1500);
         };
         btnContainer.appendChild(extBtn);
         return;
@@ -331,6 +355,13 @@
                 <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:8px 12px; font-size:11.5px; color:#166534; line-height:1.5;">
                   ✓ حسابك مرتبط ويعمل على أي عدد من أجهزتك (الموبايل، التابلت، والكمبيوتر) في نفس الوقت بحرية تامة.
                 </div>
+
+                <div style="margin-top:10px; padding:10px; background:#eff6ff; border:1px dashed #3b82f6; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:12px; color:#1e40af; font-weight:700;">💻 للربط مع تطبيق سطح المكتب:</span>
+                  <button type="button" class="btn" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer;" onclick="window.authPro.syncWithDesktop()">
+                    نقل الحساب للتطبيق 🚀
+                  </button>
+                </div>
               </div>
 
               <div style="display:flex; gap:8px;">
@@ -347,13 +378,19 @@
               <!-- Official Google Sign-In & One Tap Section -->
               <div style="margin-bottom:14px; text-align:center;">
                 <div id="googleGsiButtonContainer" style="display:flex; justify-content:center; margin-bottom:8px;"></div>
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px;">
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; margin-bottom:8px;">
                   <div style="display:flex; gap:6px;">
                     <input type="text" id="googleEmailInput" placeholder="أو اكتب بريدك Gmail للدخول الفوري..." style="flex:1; padding:7px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; outline:none; box-sizing:border-box;" onkeypress="if(event.key==='Enter') window.authPro.signInWithGoogleInput()">
                     <button type="button" class="btn btn-primary" style="padding:7px 14px; font-size:12px; font-weight:700; border-radius:8px; white-space:nowrap;" onclick="window.authPro.signInWithGoogleInput()">
                       دخول سريع 🌐
                     </button>
                   </div>
+                </div>
+                <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:12px; padding:8px 10px; display:flex; gap:6px; align-items:center;">
+                  <input type="text" id="desktopSyncTokenInput" placeholder="أو الصق رمز الدخول من المتصفح..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:11px; outline:none; box-sizing:border-box;" onkeypress="if(event.key==='Enter') window.authPro.applyPastedToken()">
+                  <button type="button" class="btn" style="background:#475569; color:#fff; padding:6px 10px; font-size:11px; font-weight:700; border-radius:6px; white-space:nowrap; border:none; cursor:pointer;" onclick="window.authPro.applyPastedToken()">
+                    تفعيل الرمز ✨
+                  </button>
                 </div>
               </div>
 
@@ -615,6 +652,16 @@
           this.updateUserUI(currentUser);
         }
 
+        // Auto-sync with Desktop App if launched via desktop_bridge
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('desktop_bridge') && res.token) {
+          if (msg) {
+            msg.textContent = 'جاري نقل بيانات الدخول إلى تطبيق سطح المكتب... 🚀';
+          }
+          window.location.href = `http://127.0.0.1:8765/api/auth/desktop-bridge?token=${encodeURIComponent(res.token)}`;
+          return;
+        }
+
         setTimeout(() => {
           this.closeModal();
         }, 600);
@@ -724,6 +771,43 @@
           msg.style.color = 'var(--danger)';
           msg.textContent = err.message || 'فشل تسجيل الدخول بحساب Google.';
         }
+      }
+    },
+
+    syncWithDesktop() {
+      const token = window.api.getAuthToken();
+      if (!token) {
+        alert('يرجى تسجيل الدخول أولاً.');
+        return;
+      }
+      try {
+        navigator.clipboard.writeText(token);
+        alert('✓ تم نسخ رمز الدخول السريع للحافظة!\nيمكنك أيضاً الضغط على الرابط لنقله تلقائياً لتطبيق سطح المكتب.');
+      } catch (e) {}
+      const bridgeUrl = `http://127.0.0.1:8765/api/auth/desktop-bridge?token=${encodeURIComponent(token)}`;
+      window.open(bridgeUrl, '_blank');
+    },
+
+    async applyPastedToken() {
+      const input = document.getElementById('desktopSyncTokenInput');
+      const token = (input?.value || '').trim();
+      if (!token) {
+        alert('يرجى لصق رمز الدخول أولاً.');
+        return;
+      }
+      window.api.setAuthToken(token);
+      currentUser = await window.api.getMe();
+      if (currentUser && currentUser.email && currentUser.email !== 'guest@neodrug.app') {
+        this.updateUserUI(currentUser);
+        const msg = document.getElementById('authMsg');
+        if (msg) {
+          msg.style.display = 'block';
+          msg.style.color = '#15803d';
+          msg.textContent = '🎉 تم تفعيل الحساب في تطبيق سطح المكتب بنجاح!';
+        }
+        setTimeout(() => { this.closeModal(); }, 1000);
+      } else {
+        alert('الرمز غير صالح أو تعذر الاتصال بالخادم.');
       }
     },
 

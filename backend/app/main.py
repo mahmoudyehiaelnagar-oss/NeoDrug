@@ -6,7 +6,7 @@ import urllib.request
 import traceback
 from fastapi import FastAPI, Depends, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse
 import os
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -814,6 +814,53 @@ def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
     )
 
     return {"token": token, "user": user_profile, "message": "تم تسجيل الدخول بحساب Google بنجاح! 🌐"}
+
+_latest_desktop_token = None
+
+@app.get("/api/auth/desktop-bridge", response_class=HTMLResponse)
+def desktop_bridge_callback(token: str = Query(...)):
+    global _latest_desktop_token
+    _latest_desktop_token = token
+    return f"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تم تسجيل الدخول بنجاح</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0b1120; color: #f8fafc; text-align: center; padding: 20px; box-sizing: border-box; }}
+  .card {{ background: #1e293b; border: 1px solid #334155; padding: 36px 28px; border-radius: 24px; max-width: 460px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }}
+  .icon {{ font-size: 56px; margin-bottom: 16px; }}
+  h1 {{ font-size: 24px; margin: 0 0 12px 0; color: #38bdf8; font-weight: 800; }}
+  p {{ color: #94a3b8; font-size: 15px; line-height: 1.7; margin-bottom: 24px; }}
+  .btn {{ background: #0284c7; color: #fff; border: none; padding: 14px 28px; border-radius: 14px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; box-sizing: border-box; }}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✨</div>
+    <h1>تم تسجيل الدخول بنجاح!</h1>
+    <p>تم ربط حسابك بتطبيق Neo Drug لسطح المكتب بنجاح. يمكنك الآن إغلاق هذا التبويب والعودة فوراً للتطبيق لاستخدامه.</p>
+    <button class="btn" onclick="window.close()">إغلاق هذه الصفحة والعودة للتطبيق 🚀</button>
+  </div>
+  <script>
+    try {{
+      localStorage.setItem('neodrug_token', '{token}');
+      localStorage.setItem('NEO_AUTH_TOKEN', '{token}');
+    }} catch(e) {{}}
+    setTimeout(function() {{
+      window.close();
+    }}, 3500);
+  </script>
+</body>
+</html>"""
+
+@app.get("/api/auth/desktop-bridge-poll")
+def desktop_bridge_poll():
+    global _latest_desktop_token
+    t = _latest_desktop_token
+    _latest_desktop_token = None
+    return {"token": t}
 
 @app.get("/api/auth/me", response_model=schemas.UserProfileResponse)
 def get_me(request: Request, db: Session = Depends(get_db)):

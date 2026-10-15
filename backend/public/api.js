@@ -123,6 +123,17 @@ window.api = {
     }
   },
 
+  async checkDesktopBridge() {
+    try {
+      const res = await fetch(`${API_BASE}/auth/desktop-bridge-poll`);
+      if (res.ok) {
+        const data = await res.json();
+        return data.token;
+      }
+    } catch (e) {}
+    return null;
+  },
+
   async getDrugs(q = "", cls = "all", form = "all", page = 1, size = 50) {
     const params = new URLSearchParams();
     if (q) params.append("q", q);
