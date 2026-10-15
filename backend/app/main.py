@@ -862,6 +862,54 @@ def desktop_bridge_poll():
     _latest_desktop_token = None
     return {"token": t}
 
+@app.get("/api/auth/cloud-sync")
+def cloud_sync_status(email: str = Query(...), db: Session = Depends(get_db)):
+    email_clean = email.strip().lower()
+    user = db.query(models.User).filter(models.User.email == email_clean).first()
+    if not user:
+        return {"found": False, "is_pro": False, "tier": "free"}
+
+    now_naive = datetime.utcnow()
+    is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now_naive))
+    days_left = max(1, (user.pro_expires_at - now_naive).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
+
+    return {
+        "found": True,
+        "email": user.email,
+        "tier": user.tier,
+        "is_pro": is_pro,
+        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None,
+        "days_left": days_left
+    }
+
+@app.post("/api/auth/apply-cloud-sync")
+def apply_cloud_sync(req: dict, request: Request, db: Session = Depends(get_db)):
+    email = req.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Missing email")
+    user = db.query(models.User).filter(models.User.email == email.strip().lower()).first()
+    if not user:
+        user = models.User(
+            email=email.strip().lower(),
+            username=email.split("@")[0],
+            password_hash="cloud_synced",
+            tier=req.get("tier", "pro")
+        )
+        db.add(user)
+
+    if req.get("is_pro") or req.get("tier") == "pro":
+        user.tier = "pro"
+        exp = req.get("pro_expires_at")
+        if exp:
+            try:
+                user.pro_expires_at = datetime.fromisoformat(exp.replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                user.pro_expires_at = None
+        else:
+            user.pro_expires_at = None
+        db.commit()
+    return {"success": True}
+
 @app.get("/api/auth/me", response_model=schemas.UserProfileResponse)
 def get_me(request: Request, db: Session = Depends(get_db)):
     client_ip = limiter.get_client_ip(request)
@@ -869,6 +917,29 @@ def get_me(request: Request, db: Session = Depends(get_db)):
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
     if user:
+        # If this is desktop standalone app, and local DB says free, check cloud sync with Vercel
+        if os.getenv("NEO_DESKTOP_APP") == "1" and user.tier != "pro":
+            try:
+                import urllib.request, json
+                cloud_url = f"https://neo-drug.vercel.app/api/auth/cloud-sync?email={urllib.parse.quote(user.email)}"
+                req_sync = urllib.request.Request(cloud_url, headers={"User-Agent": "NeoDrug-Desktop-Sync"})
+                with urllib.request.urlopen(req_sync, timeout=2.0) as resp:
+                    if resp.status == 200:
+                        cdata = json.loads(resp.read().decode("utf-8"))
+                        if cdata.get("is_pro") or cdata.get("tier") == "pro":
+                            user.tier = "pro"
+                            if cdata.get("pro_expires_at"):
+                                try:
+                                    user.pro_expires_at = datetime.fromisoformat(cdata["pro_expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                                except Exception:
+                                    user.pro_expires_at = None
+                            else:
+                                user.pro_expires_at = None
+                            db.commit()
+                            db.refresh(user)
+            except Exception:
+                pass
+
         now_naive = datetime.utcnow()
         is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now_naive))
         days_left = max(1, (user.pro_expires_at - now_naive).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)

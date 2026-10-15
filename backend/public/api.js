@@ -91,7 +91,32 @@ window.api = {
         }
         return null;
       }
-      const profile = await res.json();
+      let profile = await res.json();
+
+      // Cloud PRO Sync: If local profile is free, query Vercel cloud to check if user has active PRO
+      if (profile && !profile.is_pro && profile.email && profile.email !== 'guest@neodrug.app') {
+        try {
+          const cloudRes = await fetch(`https://neo-drug.vercel.app/api/auth/cloud-sync?email=${encodeURIComponent(profile.email)}`);
+          if (cloudRes.ok) {
+            const cloudData = await cloudRes.json();
+            if (cloudData && (cloudData.is_pro || cloudData.tier === 'pro')) {
+              profile.is_pro = true;
+              profile.tier = "pro";
+              profile.days_left = cloudData.days_left;
+              profile.pro_expires_at = cloudData.pro_expires_at;
+              // Synchronize with local database permanently
+              fetch(`${API_BASE}/auth/apply-cloud-sync`, {
+                method: "POST",
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify(cloudData)
+              }).catch(() => {});
+            }
+          }
+        } catch (syncErr) {
+          console.debug("Cloud sync offline or skipped:", syncErr);
+        }
+      }
+
       if (profile && profile.email && profile.email !== 'guest@neodrug.app') {
         localStorage.setItem("NEO_USER_PROFILE", JSON.stringify(profile));
       }
