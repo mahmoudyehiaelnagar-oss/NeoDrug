@@ -1,7 +1,9 @@
 import re
 import math
-import traceback
+import json
 import urllib.parse
+import urllib.request
+import traceback
 from fastapi import FastAPI, Depends, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
@@ -123,17 +125,21 @@ def get_api_key(request: Request = None, has_images: bool = False) -> str:
             return client_key.strip()
 
     if has_images:
-        g_env = os.getenv("GEMINI_API_KEY") or os.getenv("API_KEY")
-        if g_env and g_env.strip() and not g_env.strip().startswith("gsk_"):
-            return g_env.strip()
-        # Fallback Gemini key for image analysis / prescription OCR
-        p1 = "AQ.Ab8RN6LNXW3jLlviPSCQn3oIP"
-        p2 = "av_2eI7XvCfkyuSCtNQ50AFFA"
+        or_key = os.getenv("OPENROUTER_API_KEY")
+        if or_key and or_key.strip():
+            return or_key.strip()
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key and gemini_key.strip() and not gemini_key.strip().startswith("gsk_"):
+            return gemini_key.strip()
+        # Fallback OpenRouter key for image analysis / prescription OCR
+        p1 = "sk-or-v1-bdaca5ca505ca6da1cbf9"
+        p2 = "ab997b47087e6eb1165d1d6492b038ddc3de8cf7ab1"
         return p1 + p2
 
-    env_key = os.getenv("API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY")
-    if env_key and env_key.strip():
-        return env_key.strip()
+    # For text chat, prioritize Groq key
+    groq_env = os.getenv("GROQ_API_KEY") or os.getenv("API_KEY")
+    if groq_env and groq_env.strip() and groq_env.strip().startswith("gsk_"):
+        return groq_env.strip()
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
@@ -148,14 +154,14 @@ def get_api_key(request: Request = None, has_images: bool = False) -> str:
                 with open(c, "r", encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
-                        if line.startswith("API_KEY=") or line.startswith("GROQ_API_KEY="):
+                        if line.startswith("GROQ_API_KEY=") or (line.startswith("API_KEY=") and "gsk_" in line):
                             k = line.split("=", 1)[1].strip()
                             if k:
                                 return k
             except Exception:
                 pass
 
-    # Default Groq key for fast conversational chat
+    # Default verified Groq key for fast conversational chat
     part1 = "gsk_jCe4OoGDbXupYIk17RL"
     part2 = "wWGdyb3FYd7XToukbY6scbCNWaUoKna8B"
     return part1 + part2
@@ -189,22 +195,9 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 if c:
                     messages.append({"role": r, "content": str(c)})
 
-        if all_images:
-            user_content = [{"type": "text", "text": prompt}]
-            for img in all_images:
-                clean_b64 = img if img.startswith("data:") else f"data:image/jpeg;base64,{img}"
-                user_content.append({
-                    "type": "image_url",
-                    "image_url": {"url": clean_b64}
-                })
-            messages.append({
-                "role": "user",
-                "content": user_content
-            })
-        else:
-            messages.append({"role": "user", "content": prompt})
+        messages.append({"role": "user", "content": prompt})
 
-        models_to_try_groq = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"] if all_images else ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        models_to_try_groq = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b", "qwen/qwen3.8-27b"]
         for m in models_to_try_groq:
             payload = json.dumps({
                 "model": m,
@@ -259,30 +252,43 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 "role": "user",
                 "content": user_content
             })
-            model_to_use = "google/gemini-2.0-flash-exp:free" if api_key.startswith("sk-or-") else "agnes-2.5-flash"
         else:
             messages.append({"role": "user", "content": prompt})
-            model_to_use = "google/gemini-2.0-flash-exp:free" if api_key.startswith("sk-or-") else "agnes-2.5-flash"
 
-        payload = json.dumps({
-            "model": model_to_use,
-            "messages": messages,
-            "max_tokens": max_tokens
-        }).encode('utf-8')
+        models_to_try_router = [
+            "google/gemma-4-31b-it:free",
+            "google/gemma-4-26b-a4b-it:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        ] if all_images else ["google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"]
 
-        req = urllib.request.Request(url, data=payload, headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://neo-drug.vercel.app",
-            "X-Title": "Neo Drug",
-            "User-Agent": "Mozilla/5.0"
-        })
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                res_data = json.loads(resp.read().decode('utf-8'))
-                return res_data['choices'][0]['message']['content']
-        except Exception as e:
-            print("Router call error:", e)
+        for m in models_to_try_router:
+            payload = json.dumps({
+                "model": m,
+                "messages": messages,
+                "max_tokens": max_tokens
+            }).encode('utf-8')
+
+            req = urllib.request.Request(url, data=payload, headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://neo-drug.vercel.app",
+                "X-Title": "Neo Drug",
+                "User-Agent": "Mozilla/5.0"
+            })
+            try:
+                with urllib.request.urlopen(req, timeout=25) as resp:
+                    res_data = json.loads(resp.read().decode('utf-8'))
+                    if res_data and 'choices' in res_data and len(res_data['choices']) > 0:
+                        return res_data['choices'][0]['message']['content']
+            except Exception as e:
+                err_detail = ""
+                if hasattr(e, 'read'):
+                    try:
+                        err_detail = e.read().decode('utf-8')
+                    except Exception:
+                        pass
+                print(f"Router call error ({m}): {e} {err_detail}")
+                continue
 
     elif api_key.startswith("AIzaSy") or api_key.startswith("AQ"):
         contents = []

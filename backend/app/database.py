@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import fcntl
 from sqlalchemy import create_engine
@@ -15,7 +16,6 @@ is_read_only_env = bool(
     os.getenv("VERCEL")
     or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
     or os.path.exists("/var/task")
-    or not os.access(os.path.dirname(ORIGINAL_DB_PATH) if os.path.exists(ORIGINAL_DB_PATH) else ".", os.W_OK)
 )
 
 if is_read_only_env:
@@ -49,7 +49,31 @@ if is_read_only_env:
         pass
     DB_PATH = TMP_DB_PATH
 else:
-    DB_PATH = ORIGINAL_DB_PATH
+    # Desktop Standalone Mode (macOS / Windows / Linux):
+    # Store database in portable USB folder or user's permanent application data folder
+    portable_dir = os.getenv("NEO_PORTABLE_DATA_DIR")
+    if portable_dir and os.path.exists(portable_dir):
+        data_dir = portable_dir
+    elif sys.platform == "darwin":
+        data_dir = os.path.expanduser("~/Library/Application Support/NeoDrug")
+    elif sys.platform == "win32":
+        data_dir = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "NeoDrug")
+    else:
+        data_dir = os.path.expanduser("~/.local/share/neodrug")
+
+    os.makedirs(data_dir, exist_ok=True)
+    USER_DB_PATH = os.path.join(data_dir, "drugs_database.db")
+    if not os.path.exists(USER_DB_PATH) or os.path.getsize(USER_DB_PATH) == 0:
+        if os.path.exists(ORIGINAL_DB_PATH):
+            try:
+                shutil.copyfile(ORIGINAL_DB_PATH, USER_DB_PATH)
+            except Exception as e:
+                print(f"Error copying initial DB to user data dir: {e}")
+    try:
+        os.chmod(USER_DB_PATH, 0o666)
+    except Exception:
+        pass
+    DB_PATH = USER_DB_PATH
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
