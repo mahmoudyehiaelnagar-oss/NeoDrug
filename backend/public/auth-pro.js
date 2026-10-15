@@ -75,7 +75,11 @@
         extBtn.style.cssText = 'width:100%; padding:12px; background:#4285F4; color:#fff; border:none; border-radius:24px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px;';
         extBtn.innerHTML = '<span>🌐 تسجيل الدخول بحساب Google (فتح المتصفح)</span>';
         extBtn.onclick = () => {
-          window.open('https://neo-drug.vercel.app/index', '_blank');
+          if (window.pywebview && window.pywebview.api && window.pywebview.api.open_external) {
+            window.pywebview.api.open_external('https://neo-drug.vercel.app/index');
+          } else {
+            window.open('https://neo-drug.vercel.app/index', '_blank');
+          }
         };
         btnContainer.appendChild(extBtn);
         return;

@@ -80,6 +80,14 @@ def main():
 
     print("✓ تم بدء السيرفر المحلي وقاعدة البيانات بنجاح.")
 
+    class DesktopApi:
+        def open_external(self, url):
+            import webbrowser
+            webbrowser.open(str(url))
+            return True
+
+    api = DesktopApi()
+
     # إنشاء نافذة التطبيق المستقل
     window = webview.create_window(
         title="Neo Drug — دليل الأدوية المصري",
@@ -88,7 +96,8 @@ def main():
         height=850,
         resizable=True,
         text_select=True,
-        confirm_close=False
+        confirm_close=False,
+        js_api=api
     )
 
     webview.start(debug=False)
