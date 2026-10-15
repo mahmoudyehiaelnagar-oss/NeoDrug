@@ -10,6 +10,10 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ORIGINAL_DB_PATH = os.path.join(BASE_DIR, "public", "drugs_database.db")
+if not os.path.exists(ORIGINAL_DB_PATH) and getattr(sys, 'frozen', False):
+    # PyInstaller bundle fallback
+    BUNDLE_ROOT = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    ORIGINAL_DB_PATH = os.path.join(BUNDLE_ROOT, "backend", "public", "drugs_database.db")
 
 # If running on Vercel / Lambda (Read-Only filesystem), copy the DB to /tmp which is writable
 is_read_only_env = bool(

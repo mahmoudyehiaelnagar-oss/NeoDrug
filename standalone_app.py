@@ -45,9 +45,16 @@ os.environ["NEO_DESKTOP_APP"] = "1"
 
 def find_free_port():
     """البحث عن منفذ محلي متاح لتشغيل السيرفر"""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('127.0.0.1', 0))
-        return s.getsockname()[1]
+    # استخدام منفذ ثابت ومضمون لتجنب قيود الحظر العشوائي للـ sockets
+    port = 8765
+    for p in [8765, 8766, 8767, 8768, 8769, 9000, 9001, 9002]:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('127.0.0.1', p))
+                return p
+        except Exception:
+            continue
+    return 8765
 
 def start_backend_server(port):
     """تشغيل خادم FastAPI في الخلفية كـ Thread مستقل"""

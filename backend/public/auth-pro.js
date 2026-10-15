@@ -20,7 +20,7 @@
 
   const WHATSAPP_PHONE = '201070142811';
   const DISPLAY_PHONE = '01070142811';
-  const DEFAULT_GOOGLE_CLIENT_ID = '632334576806-5gbht30go4rb2gkgcdtpfc1eb35fmiep.apps.googleusercontent.com';
+  const DEFAULT_GOOGLE_CLIENT_ID = '632334576806-ta1instgonlh0rmbq4mdun5917s8n2lu.apps.googleusercontent.com';
 
   window.authPro = {
     getUser() {
@@ -76,7 +76,11 @@
         extBtn.innerHTML = '<span>🌐 تسجيل الدخول بحساب Google (فتح المتصفح)</span>';
         extBtn.onclick = () => {
           if (window.pywebview && window.pywebview.api && window.pywebview.api.open_external) {
-            window.pywebview.api.open_external('https://neo-drug.vercel.app/index');
+            try {
+              window.pywebview.api.open_external('https://neo-drug.vercel.app/index');
+            } catch (err) {
+              window.open('https://neo-drug.vercel.app/index', '_blank');
+            }
           } else {
             window.open('https://neo-drug.vercel.app/index', '_blank');
           }
