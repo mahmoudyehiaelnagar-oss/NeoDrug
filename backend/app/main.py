@@ -197,7 +197,13 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
 
         messages.append({"role": "user", "content": prompt})
 
-        models_to_try_groq = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b", "qwen/qwen3.8-27b"]
+        models_to_try_groq = [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "llama3-70b-8192",
+            "llama3-8b-8192",
+            "gemma2-9b-it",
+        ]
         for m in models_to_try_groq:
             payload = json.dumps({
                 "model": m,
