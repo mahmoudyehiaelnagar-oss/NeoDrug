@@ -1,5 +1,5 @@
 const API_BASE = "/api";
-const DEFAULT_GROQ_KEY = "";
+const DEFAULT_GROQ_KEY = "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";
 
 window.api = {
   getAuthToken() {
@@ -344,7 +344,7 @@ window.api = {
             "Authorization": `Bearer ${groqKey}`
           },
           body: JSON.stringify({
-            model: imagesList.length > 0 ? "meta-llama/llama-4-scout-17b-vision" : "llama-3.3-70b-versatile",
+            model: imagesList.length > 0 ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile",
             messages: messages,
             max_tokens: isDual ? 2000 : 1500
           })
