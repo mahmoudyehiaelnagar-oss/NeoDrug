@@ -41,12 +41,13 @@ function compressImage(file, maxDimension = 2048, quality = 0.92) {
 
 async function callAI(promptText, dataUrl) {
   const url = '/api/chat';
+  const headers = (window.api && typeof window.api.getAuthHeaders === 'function')
+    ? window.api.getAuthHeaders()
+    : { 'Content-Type': 'application/json' };
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: headers,
     body: JSON.stringify({
       message: promptText,
       image_base64: dataUrl,

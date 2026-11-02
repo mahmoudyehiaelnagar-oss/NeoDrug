@@ -38,9 +38,8 @@ except Exception:
 
 # ضبط متغيرات البيئة الأساسية
 os.environ["ADMIN_KEY"] = os.environ.get("ADMIN_KEY", "216180")
-p_gk1 = "gsk_jCe4OoGDbXupYIk17RL"
-p_gk2 = "wWGdyb3FYd7XToukbY6scbCNWaUoKna8B"
-os.environ["API_KEY"] = os.environ.get("API_KEY", p_gk1 + p_gk2)
+# API_KEY should be set via environment variable (GROQ_API_KEY or GEMINI_API_KEY or OPENROUTER_API_KEY)
+os.environ["API_KEY"] = os.environ.get("API_KEY", os.environ.get("GROQ_API_KEY", ""))
 os.environ["NEO_DESKTOP_APP"] = "1"
 
 def find_free_port():

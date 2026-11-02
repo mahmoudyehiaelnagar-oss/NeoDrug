@@ -484,7 +484,7 @@ window.addEventListener('DOMContentLoaded', () => {
     updateAnalyzeBtnState();
   });
 
-  function compressImage(file, maxDimension = 2048, quality = 0.92) {
+  function compressImage(file, maxDimension = 1400, quality = 0.82) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
@@ -679,11 +679,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const text = chatInput.value.trim();
     if (!text) return;
 
-    if (window.authPro && !window.authPro.isPro()) {
-      window.authPro.openPaywall('upgrade');
-      return;
-    }
-
     const userDiv = document.createElement('div');
     userDiv.className = 'msg user';
     userDiv.textContent = text;
@@ -713,8 +708,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const isLabOnly = !selectedPrescriptionBase64 && selectedLabBase64;
     if (!isDual && !isPrescriptionOnly && !isLabOnly) return;
 
-    if (window.authPro && !window.authPro.isPro()) {
-      window.authPro.openPaywall('upgrade');
+    if (isDual && window.authPro && !window.authPro.isPro()) {
+      window.authPro.openPaywall('dual_ocr', 'فحص الروشتة مع التحاليل المخبرية وتدقيق الجرعات ميزة حصرية لمشتركي Neo PRO.');
       return;
     }
 

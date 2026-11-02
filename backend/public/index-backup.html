@@ -2955,7 +2955,9 @@ function runInteractionCheck() {
 }
 
 /* ==================== AI CONFIGURATION & INTEGRATION ==================== */
-var DEFAULT_AI_KEY = 'sk-a0e632c1ba13f9b8-fb6e97-ed0b3fe4';
+// API keys should be set via localStorage or environment variables
+// No hardcoded keys - configure in AI settings modal
+var DEFAULT_AI_KEY = '';
 
 var AI_PROVIDERS_META = {
   'omniroute': {
@@ -3727,7 +3729,7 @@ window.addEventListener('DOMContentLoaded', init);
     </div>
     
     <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--fg)">مفتاح الـ API (API Key):</label>
-    <input type="text" id="ai-modal-key" oninput="onAiKeyInput()" value="sk-a0e632c1ba13f9b8-fb6e97-ed0b3fe4" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:12px;font-family:var(--font-mono);margin-bottom:8px;box-sizing:border-box;background:var(--surface-subtle);color:var(--fg)" placeholder="sk-... أو AIzaSy... أو gsk_...">
+    <input type="text" id="ai-modal-key" oninput="onAiKeyInput()" value="" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:12px;font-family:var(--font-mono);margin-bottom:8px;box-sizing:border-box;background:var(--surface-subtle);color:var(--fg)" placeholder="sk-... أو AIzaSy... أو gsk_...">
     <div id="ai-provider-hint" style="font-size:11.5px;color:var(--primary);margin-bottom:12px;min-height:16px"></div>
 
     <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--fg)">المنصة ومزود الخدمة (AI Provider):</label>

@@ -1,5 +1,4 @@
 const API_BASE = "/api";
-const DEFAULT_GROQ_KEY = "";
 
 window.api = {
   getAuthToken() {
@@ -33,7 +32,7 @@ window.api = {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    const apiKey = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GROQ_API_KEY') || DEFAULT_GROQ_KEY;
+    const apiKey = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GROQ_API_KEY') || "";
     if (apiKey) {
       headers["x-api-key"] = apiKey;
       headers["x-gemini-key"] = apiKey;
@@ -303,7 +302,7 @@ window.api = {
     }
 
     // 2. Direct high-speed Groq API fallback (works only if user provides a valid key)
-    const groqKey = (localStorage.getItem("GROQ_API_KEY") || DEFAULT_GROQ_KEY || "").trim();
+    const groqKey = (localStorage.getItem("GROQ_API_KEY") || "").trim();
     if (groqKey) {
       try {
         const systemPrompt = isDual
@@ -344,7 +343,7 @@ window.api = {
             "Authorization": `Bearer ${groqKey}`
           },
           body: JSON.stringify({
-            model: imagesList.length > 0 ? "meta-llama/llama-4-scout-17b-vision" : "llama-3.3-70b-versatile",
+            model: imagesList.length > 0 ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile",
             messages: messages,
             max_tokens: isDual ? 2000 : 1500
           })
