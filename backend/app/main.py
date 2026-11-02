@@ -118,17 +118,8 @@ def get_drugs(
         "pages": pages
     }
 
-# Verified default fallback keys for zero-downtime AI
-DEFAULT_GROQ_KEY = "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"
-DEFAULT_OPENROUTER_KEYS = [
-    "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",
-    "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"
-]
-DEFAULT_GEMINI_KEYS = [
-    "AQ.Ab8RN6L-t3ddEUjGhaD1xoWWiD4ABYA9bHcW3740mVkKyvcgUQ",
-    "AQ.Ab8RN6LNXW3jLlviPSCQn3oIPav_2eI7XvCfkyuSCtNQ50AFFA",
-    "AQ.Ab8RN6Jv0OIJ554b5LwZZ9uHXhUrDaqtyzpAwaz4CNdYHx55cA"
-]
+# API keys are loaded from environment variables and .env files
+# Set GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY in your deployment environment
 
 def _call_groq(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int) -> str:
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -436,10 +427,18 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
             except Exception:
                 pass
 
-    # Append verified defaults
-    groq_keys.append(DEFAULT_GROQ_KEY)
-    gemini_keys.extend(DEFAULT_GEMINI_KEYS)
-    openrouter_keys.extend(DEFAULT_OPENROUTER_KEYS)
+    # Append keys from environment variables (set in deployment: Vercel, .env, etc.)
+    env_groq = os.getenv("GROQ_API_KEY")
+    if env_groq and env_groq.strip():
+        groq_keys.append(env_groq.strip())
+
+    env_gemini = os.getenv("GEMINI_API_KEY")
+    if env_gemini and env_gemini.strip():
+        gemini_keys.extend([k.strip() for k in env_gemini.split(",") if k.strip()])
+
+    env_openrouter = os.getenv("OPENROUTER_API_KEY")
+    if env_openrouter and env_openrouter.strip():
+        openrouter_keys.extend([k.strip() for k in env_openrouter.split(",") if k.strip()])
 
     # Deduplicate while preserving priority order
     def dedupe(lst):

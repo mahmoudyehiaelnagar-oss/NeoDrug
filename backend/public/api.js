@@ -1,5 +1,4 @@
 const API_BASE = "/api";
-const DEFAULT_GROQ_KEY = "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";
 
 window.api = {
   getAuthToken() {
@@ -33,7 +32,7 @@ window.api = {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    const apiKey = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GROQ_API_KEY') || DEFAULT_GROQ_KEY;
+    const apiKey = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GROQ_API_KEY') || "";
     if (apiKey) {
       headers["x-api-key"] = apiKey;
       headers["x-gemini-key"] = apiKey;
@@ -303,7 +302,7 @@ window.api = {
     }
 
     // 2. Direct high-speed Groq API fallback (works only if user provides a valid key)
-    const groqKey = (localStorage.getItem("GROQ_API_KEY") || DEFAULT_GROQ_KEY || "").trim();
+    const groqKey = (localStorage.getItem("GROQ_API_KEY") || "").trim();
     if (groqKey) {
       try {
         const systemPrompt = isDual
