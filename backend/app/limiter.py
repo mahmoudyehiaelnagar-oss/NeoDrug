@@ -5,8 +5,8 @@ from fastapi import Request
 from . import models
 
 FREE_LIMITS = {
-    "ai_chat": 0,       # Locked for non-PRO subscribers
-    "single_ocr": 0,     # Locked for non-PRO subscribers
+    "ai_chat": 5,
+    "single_ocr": 2,     # 2 free daily prescription OCR scans for trial
     "dual_ocr": 0       # Locked for non-PRO subscribers
 }
 
@@ -76,18 +76,38 @@ def check_feature_access(db: Session, user: Optional[models.User], feature: str,
                 db.rollback()
                 raise e
 
-    # 2. If not PRO or guest, lock features and require PRO activation
+    # 2. Check Free Tier usage limits
     usage = get_or_create_usage(db, user, client_ip)
 
-    if feature in ("dual_ocr", "single_ocr", "ai_chat"):
+    if feature == "dual_ocr":
         return False, {
             "error": "PRO_REQUIRED",
-            "feature": feature,
-            "message": "🔒 ميزات الذكاء الاصطناعي وقراءة الروشتات وتدقيق الجرعات مقفلة وتتطلب تفعيل اشتراك Neo Drug PRO.",
+            "feature": "dual_ocr",
+            "message": "🔒 فحص الروشتة مع التحاليل المخبرية وتدقيق الجرعات ميزة حصرية لمشتركي Neo Drug PRO.",
             "limit": 0,
-            "used": usage.ai_queries_count + usage.single_ocr_count + usage.dual_ocr_count,
+            "used": usage.dual_ocr_count,
             "upgrade_required": True
         }
+    elif feature == "single_ocr":
+        if usage.single_ocr_count >= FREE_LIMITS["single_ocr"]:
+            return False, {
+                "error": "LIMIT_REACHED",
+                "feature": "single_ocr",
+                "message": f"لقد استنفدت الحد اليومي المجاني لقراءة الروشتات ({FREE_LIMITS['single_ocr']} فحص يومياً). قم بالترقية لـ PRO للاستخدام غير المحدود.",
+                "limit": FREE_LIMITS["single_ocr"],
+                "used": usage.single_ocr_count,
+                "upgrade_required": True
+            }
+    elif feature == "ai_chat":
+        if usage.ai_queries_count >= FREE_LIMITS["ai_chat"]:
+            return False, {
+                "error": "LIMIT_REACHED",
+                "feature": "ai_chat",
+                "message": f"لقد استنفدت رصيدك اليومي المجاني ({FREE_LIMITS['ai_chat']} استشارات يومياً). قم بالترقية لـ PRO للاستخدام غير المحدود.",
+                "limit": FREE_LIMITS["ai_chat"],
+                "used": usage.ai_queries_count,
+                "upgrade_required": True
+            }
 
     return True, {"tier": "free", "unlimited": False}
 

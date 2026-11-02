@@ -124,6 +124,11 @@ DEFAULT_OPENROUTER_KEYS = [
     "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",
     "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"
 ]
+DEFAULT_GEMINI_KEYS = [
+    "AQ.Ab8RN6L-t3ddEUjGhaD1xoWWiD4ABYA9bHcW3740mVkKyvcgUQ",
+    "AQ.Ab8RN6LNXW3jLlviPSCQn3oIPav_2eI7XvCfkyuSCtNQ50AFFA",
+    "AQ.Ab8RN6Jv0OIJ554b5LwZZ9uHXhUrDaqtyzpAwaz4CNdYHx55cA"
+]
 
 def _call_groq(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int) -> str:
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -225,8 +230,8 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
         for img in all_images:
             clean_b64 = re.sub(r'^data:image\/[a-zA-Z0-9\.\+_\-]+;base64,', '', str(img).strip())
             current_parts.append({
-                "inline_data": {
-                    "mime_type": "image/jpeg",
+                "inlineData": {
+                    "mimeType": "image/jpeg",
                     "data": clean_b64
                 }
             })
@@ -249,7 +254,7 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
         }
 
     payload = json.dumps(req_dict).encode('utf-8')
-    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"]
+    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
     for m in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
         req = urllib.request.Request(url, data=payload, headers={
@@ -304,17 +309,16 @@ def _call_openrouter(api_key: str, prompt: str, system_prompt: str, all_images: 
             })
         messages.append({"role": "user", "content": user_content})
         models_to_try = [
-            "google/gemini-2.0-flash-exp:free",
-            "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "qwen/qwen-2-vl-72b-instruct:free",
             "google/gemini-2.0-flash-001",
-            "meta-llama/llama-3.2-11b-vision-instruct",
-            "google/gemini-flash-1.5-exp"
+            "google/gemini-2.0-flash-lite-preview-02-05:free",
+            "qwen/qwen-2.5-vl-72b-instruct:free",
+            "meta-llama/llama-3.2-11b-vision-instruct:free",
+            "google/gemini-flash-1.5"
         ]
     else:
         messages.append({"role": "user", "content": prompt})
         models_to_try = [
-            "google/gemini-2.0-flash-exp:free",
+            "google/gemini-2.0-flash-001",
             "meta-llama/llama-3.3-70b-instruct:free",
             "meta-llama/llama-3.1-8b-instruct:free"
         ]
@@ -434,6 +438,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
 
     # Append verified defaults
     groq_keys.append(DEFAULT_GROQ_KEY)
+    gemini_keys.extend(DEFAULT_GEMINI_KEYS)
     openrouter_keys.extend(DEFAULT_OPENROUTER_KEYS)
 
     # Deduplicate while preserving priority order
@@ -451,14 +456,9 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
     openrouter_keys = dedupe(openrouter_keys)
 
     # 2. Resilient Execution Waterfall
-    # For images: Groq Vision -> Google Gemini -> OpenRouter Vision
+    # For images: Google Gemini (fastest & clinical precision) -> OpenRouter Vision -> Groq Vision
     # For text: Groq -> Google Gemini -> OpenRouter
     if has_images:
-        for k in groq_keys:
-            res = _call_groq(k, prompt, system_prompt, all_images, history, max_tokens)
-            if res:
-                return res
-
         for k in gemini_keys:
             res = _call_gemini(k, prompt, system_prompt, all_images, history)
             if res:
@@ -466,6 +466,11 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
 
         for k in openrouter_keys:
             res = _call_openrouter(k, prompt, system_prompt, all_images, history, max_tokens)
+            if res:
+                return res
+
+        for k in groq_keys:
+            res = _call_groq(k, prompt, system_prompt, all_images, history, max_tokens)
             if res:
                 return res
     else:
