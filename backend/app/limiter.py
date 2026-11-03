@@ -1,6 +1,9 @@
+import os
+import json
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from fastapi import Request
 from . import models
 
@@ -11,56 +14,65 @@ FREE_LIMITS = {
 }
 
 def get_client_ip(request: Request) -> str:
+    """
+    Resolve the client IP without trusting a client-supplied X-Forwarded-For.
+
+    The hosting proxy (Vercel) sets x-real-ip / x-vercel-forwarded-for. We only fall
+    back to the *last* X-Forwarded-For entry (the one appended by the proxy) and
+    finally to the socket address.
+    """
+    real_ip = (request.headers.get("x-real-ip") or "").strip()
+    if real_ip:
+        return real_ip
+
+    vercel_ip = (request.headers.get("x-vercel-forwarded-for") or "").strip()
+    if vercel_ip:
+        return vercel_ip.split(",")[-1].strip()
+
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        parts = [part.strip() for part in forwarded.split(",") if part.strip()]
+        if parts:
+            return parts[-1]
+
     return request.client.host if request.client else "127.0.0.1"
 
 def get_or_create_usage(db: Session, user: Optional[models.User], client_ip: str) -> models.UsageRecord:
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
     if user:
-        record = db.query(models.UsageRecord).filter(
+        filters = (
             models.UsageRecord.user_id == user.id,
-            models.UsageRecord.date_str == today_str
-        ).first()
-        if not record:
-            record = models.UsageRecord(
-                user_id=user.id,
-                date_str=today_str,
-                ai_queries_count=0,
-                single_ocr_count=0,
-                dual_ocr_count=0
-            )
-            db.add(record)
-            try:
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                raise e
-            db.refresh(record)
-        return record
+            models.UsageRecord.date_str == today_str,
+        )
+        new_record = models.UsageRecord(user_id=user.id, date_str=today_str)
     else:
-        record = db.query(models.UsageRecord).filter(
+        filters = (
             models.UsageRecord.client_ip == client_ip,
-            models.UsageRecord.date_str == today_str
-        ).first()
-        if not record:
-            record = models.UsageRecord(
-                client_ip=client_ip,
-                date_str=today_str,
-                ai_queries_count=0,
-                single_ocr_count=0,
-                dual_ocr_count=0
-            )
-            db.add(record)
-            try:
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                raise e
-            db.refresh(record)
+            models.UsageRecord.date_str == today_str,
+        )
+        new_record = models.UsageRecord(client_ip=client_ip, date_str=today_str)
+
+    record = db.query(models.UsageRecord).filter(*filters).first()
+    if record:
         return record
+
+    db.add(new_record)
+    try:
+        db.commit()
+    except IntegrityError:
+        # Another request created today's row first; reuse it instead of failing.
+        db.rollback()
+        record = db.query(models.UsageRecord).filter(*filters).first()
+        if not record:
+            raise
+        return record
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(new_record)
+    return new_record
 
 def check_feature_access(db: Session, user: Optional[models.User], feature: str, client_ip: str) -> Tuple[bool, Dict[str, Any]]:
     # 1. Check if user has active PRO subscription
@@ -126,20 +138,40 @@ def record_feature_usage(db: Session, user: Optional[models.User], feature: str,
         raise e
 
 def seed_default_promo_codes(db: Session):
-    default_codes = [
-        {"code": "NEOPRO", "duration_days": 30, "max_uses": None},
-        {"code": "VIP2026", "duration_days": 90, "max_uses": None},
-        {"code": "PHARMA2026", "duration_days": 365, "max_uses": None},
-        {"code": "TRIAL2026", "duration_days": 7, "max_uses": None},
-    ]
+    """
+    Seed promo codes only from an explicit DEFAULT_PROMO_CODES env var.
+
+    We deliberately do NOT ship public, unlimited promo codes in the source code:
+    anyone reading the repository could grant themselves a free lifetime PRO plan.
+
+    Expected format (JSON array):
+      DEFAULT_PROMO_CODES=[{"code":"TRIAL7","duration_days":7,"max_uses":100}]
+    """
+    raw = (os.getenv("DEFAULT_PROMO_CODES") or "").strip()
+    if not raw:
+        return
+
+    try:
+        default_codes = json.loads(raw)
+    except Exception as exc:
+        print(f"Invalid DEFAULT_PROMO_CODES JSON: {exc}")
+        return
+
+    if not isinstance(default_codes, list):
+        print("Invalid DEFAULT_PROMO_CODES: expected a JSON array")
+        return
+
     for item in default_codes:
-        existing = db.query(models.PromoCode).filter(models.PromoCode.code == item["code"]).first()
+        if not isinstance(item, dict) or not item.get("code"):
+            continue
+        code = str(item["code"]).strip().upper()
+        existing = db.query(models.PromoCode).filter(models.PromoCode.code == code).first()
         if not existing:
             new_code = models.PromoCode(
-                code=item["code"],
+                code=code,
                 tier_granted="pro",
-                duration_days=item["duration_days"],
-                max_uses=item["max_uses"],
+                duration_days=int(item.get("duration_days") or 30),
+                max_uses=item.get("max_uses"),
                 is_active=True
             )
             db.add(new_code)

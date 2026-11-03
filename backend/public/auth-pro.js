@@ -74,8 +74,14 @@
         const extBtn = document.createElement('button');
         extBtn.style.cssText = 'width:100%; padding:12px; background:#4285F4; color:#fff; border:none; border-radius:24px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px;';
         extBtn.innerHTML = '<span>🌐 تسجيل الدخول بحساب Google (فتح المتصفح)</span>';
-        extBtn.onclick = () => {
-          const authUrl = 'https://neo-drug.vercel.app/index?desktop_bridge=1';
+        extBtn.onclick = async () => {
+          const bridge = await window.api.getBridgeConfig();
+          if (!bridge || !bridge.state || !bridge.base) {
+            alert('تعذر بدء جلسة الربط مع تطبيق سطح المكتب. يرجى إعادة تشغيل التطبيق.');
+            return;
+          }
+
+          const authUrl = `https://neo-drug.vercel.app/index?desktop_bridge=1&bridge_state=${encodeURIComponent(bridge.state)}&bridge_base=${encodeURIComponent(bridge.base)}`;
           if (window.pywebview && window.pywebview.api && window.pywebview.api.open_external) {
             try {
               window.pywebview.api.open_external(authUrl);
@@ -94,8 +100,14 @@
           }
 
           if (this._bridgeInterval) clearInterval(this._bridgeInterval);
+          let attempts = 0;
           this._bridgeInterval = setInterval(async () => {
-            const token = await window.api.checkDesktopBridge();
+            attempts += 1;
+            if (attempts > 120) {
+              clearInterval(this._bridgeInterval);
+              return;
+            }
+            const token = await window.api.checkDesktopBridge(bridge.state, bridge.base);
             if (token) {
               clearInterval(this._bridgeInterval);
               window.api.setAuthToken(token);
@@ -378,14 +390,6 @@
               <!-- Official Google Sign-In & One Tap Section -->
               <div style="margin-bottom:14px; text-align:center;">
                 <div id="googleGsiButtonContainer" style="display:flex; justify-content:center; margin-bottom:8px;"></div>
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; margin-bottom:8px;">
-                  <div style="display:flex; gap:6px;">
-                    <input type="text" id="googleEmailInput" placeholder="أو اكتب بريدك Gmail للدخول الفوري..." style="flex:1; padding:7px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; outline:none; box-sizing:border-box;" onkeypress="if(event.key==='Enter') window.authPro.signInWithGoogleInput()">
-                    <button type="button" class="btn btn-primary" style="padding:7px 14px; font-size:12px; font-weight:700; border-radius:8px; white-space:nowrap;" onclick="window.authPro.signInWithGoogleInput()">
-                      دخول سريع 🌐
-                    </button>
-                  </div>
-                </div>
                 <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:12px; padding:8px 10px; display:flex; gap:6px; align-items:center;">
                   <input type="text" id="desktopSyncTokenInput" placeholder="أو الصق رمز الدخول من المتصفح..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:11px; outline:none; box-sizing:border-box;" onkeypress="if(event.key==='Enter') window.authPro.applyPastedToken()">
                   <button type="button" class="btn" style="background:#475569; color:#fff; padding:6px 10px; font-size:11px; font-weight:700; border-radius:6px; white-space:nowrap; border:none; cursor:pointer;" onclick="window.authPro.applyPastedToken()">
@@ -655,10 +659,19 @@
         // Auto-sync with Desktop App if launched via desktop_bridge
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('desktop_bridge') && res.token) {
+          const state = (urlParams.get('bridge_state') || '').trim();
+          const bridgeBase = this._safeBridgeBase(urlParams.get('bridge_base') || '');
+          if (!state || !bridgeBase) {
+            if (msg) {
+              msg.style.color = 'var(--danger)';
+              msg.textContent = 'تعذر التحقق من جلسة الربط الآمنة مع التطبيق. أغلق هذه الصفحة وأعد المحاولة من التطبيق.';
+            }
+            return;
+          }
           if (msg) {
             msg.textContent = 'جاري نقل بيانات الدخول إلى تطبيق سطح المكتب... 🚀';
           }
-          window.location.href = `http://127.0.0.1:8765/api/auth/desktop-bridge?token=${encodeURIComponent(res.token)}`;
+          window.location.href = `${bridgeBase}/api/auth/desktop-bridge?token=${encodeURIComponent(res.token)}&state=${encodeURIComponent(state)}`;
           return;
         }
 
@@ -674,117 +687,36 @@
       }
     },
 
-    async signInWithGoogleInput() {
-      const emailInput = document.getElementById('googleEmailInput');
-      const emailClean = (emailInput?.value || '').trim().toLowerCase();
-      if (!emailClean || !emailClean.includes('@')) {
-        alert('يرجى كتابة بريد إلكتروني صحيح (Gmail).');
-        return;
-      }
-
-      const msg = document.getElementById('authMsg');
-      if (msg) {
-        msg.style.display = 'block';
-        msg.style.color = '#0284c7';
-        msg.textContent = 'جاري تسجيل الدخول بحساب Google... ⏳';
-      }
-
+    _safeBridgeBase(raw) {
+      // Only ever send a bearer token to a loopback bridge we can validate.
       try {
-        const name = emailClean.split('@')[0];
-        const res = await window.api.googleAuth(null, emailClean, name);
-
-        if (msg) {
-          msg.style.color = '#15803d';
-          msg.textContent = res.message || 'تم تسجيل الدخول بنجاح!';
-        }
-
-        if (res.user) {
-          currentUser = res.user;
-          this.updateUserUI(currentUser);
-        } else {
-          currentUser = await window.api.getMe();
-          this.updateUserUI(currentUser);
-        }
-
-        setTimeout(() => {
-          this.closeModal();
-        }, 600);
-      } catch (err) {
-        if (msg) {
-          msg.style.display = 'block';
-          msg.style.color = 'var(--danger)';
-          msg.textContent = err.message || 'فشل تسجيل الدخول.';
-        }
+        const url = new URL(String(raw));
+        if (url.protocol !== 'http:') return '';
+        if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) return '';
+        if (!url.port) return '';
+        return `${url.protocol}//${url.host}`;
+      } catch (e) {
+        return '';
       }
     },
 
-    async signInWithGooglePrompt() {
-      // Try Google GSI prompt first
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        try {
-          window.google.accounts.id.prompt();
-          return;
-        } catch (e) {}
-      }
-
-      // Fallback manual Gmail entry
-      const email = prompt("أدخل بريدك الإلكتروني لحساب Google (Gmail):");
-      if (!email || !email.trim()) return;
-
-      const emailClean = email.trim().toLowerCase();
-      if (!emailClean.includes("@")) {
-        alert("يرجى إدخال بريد إلكتروني صحيح.");
-        return;
-      }
-
-      const msg = document.getElementById('authMsg');
-      if (msg) {
-        msg.style.display = 'block';
-        msg.style.color = '#0284c7';
-        msg.textContent = 'جاري التحقق وتسجيل الدخول بحساب Google... ⏳';
-      }
-
-      try {
-        const name = emailClean.split('@')[0];
-        const res = await window.api.googleAuth(null, emailClean, name);
-
-        if (msg) {
-          msg.style.color = '#15803d';
-          msg.textContent = res.message || 'تم تسجيل الدخول بنجاح!';
-        }
-
-        if (res.user) {
-          currentUser = res.user;
-          this.updateUserUI(currentUser);
-        } else {
-          currentUser = await window.api.getMe();
-          this.updateUserUI(currentUser);
-        }
-
-        setTimeout(() => {
-          this.closeModal();
-        }, 700);
-
-      } catch (err) {
-        if (msg) {
-          msg.style.display = 'block';
-          msg.style.color = 'var(--danger)';
-          msg.textContent = err.message || 'فشل تسجيل الدخول بحساب Google.';
-        }
-      }
-    },
-
-    syncWithDesktop() {
+    async syncWithDesktop() {
       const token = window.api.getAuthToken();
       if (!token) {
         alert('يرجى تسجيل الدخول أولاً.');
         return;
       }
+
+      const bridge = await window.api.getBridgeConfig();
+      if (!bridge || !bridge.state || !bridge.base) {
+        alert('هذه الميزة متاحة فقط داخل تطبيق سطح المكتب.');
+        return;
+      }
+
       try {
         navigator.clipboard.writeText(token);
-        alert('✓ تم نسخ رمز الدخول السريع للحافظة!\nيمكنك أيضاً الضغط على الرابط لنقله تلقائياً لتطبيق سطح المكتب.');
       } catch (e) {}
-      const bridgeUrl = `http://127.0.0.1:8765/api/auth/desktop-bridge?token=${encodeURIComponent(token)}`;
+      const bridgeUrl = `${bridge.base}/api/auth/desktop-bridge?token=${encodeURIComponent(token)}&state=${encodeURIComponent(bridge.state)}`;
       window.open(bridgeUrl, '_blank');
     },
 

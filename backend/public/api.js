@@ -1,4 +1,22 @@
-const API_BASE = "/api";
+// The same frontend is served from Vercel, from the local desktop server, and from
+// a Capacitor WebView. Resolve the API base for each environment.
+const API_BASE = (function () {
+  const explicit = (window.NEO_API_BASE || localStorage.getItem("NEO_API_BASE") || "").trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+
+  const protocol = window.location.protocol;
+  const host = window.location.hostname;
+  const isCapacitor = protocol === "capacitor:" || protocol === "file:" || !!window.Capacitor;
+
+  if (isCapacitor) return "https://neo-drug.vercel.app/api";
+  if (host === "localhost" || host === "127.0.0.1") return "/api";
+  return "/api";
+})();
+
+const IS_LOCAL_DESKTOP =
+  !window.Capacitor &&
+  ["http:", "https:"].includes(window.location.protocol) &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
 window.api = {
   getAuthToken() {
@@ -64,11 +82,11 @@ window.api = {
     return data;
   },
 
-  async googleAuth(credential, email = "", name = "") {
+  async googleAuth(credential) {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential, email, name })
+      body: JSON.stringify({ credential })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "فشل تسجيل الدخول بحساب Google");
@@ -76,45 +94,46 @@ window.api = {
     return data;
   },
 
+  async exchangeCloudToken(token) {
+    if (!token) return null;
+    try {
+      const res = await fetch(`${API_BASE}/auth/exchange`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.token) this.setAuthToken(data.token, data.user);
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+
   async getMe() {
     const token = this.getAuthToken();
     if (!token) return null;
 
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
+      let res = await fetch(`${API_BASE}/auth/me`, {
         headers: this.getAuthHeaders()
       });
+
+      // A desktop build may hold a token issued by the cloud deployment. Exchange it
+      // for a local token through the server (never trust the token payload locally).
+      if (res.status === 401 && IS_LOCAL_DESKTOP) {
+        const exchanged = await this.exchangeCloudToken(token);
+        if (exchanged && exchanged.user) return exchanged.user;
+      }
+
       if (!res.ok) {
         if (res.status === 401) {
           this.setAuthToken(null);
         }
         return null;
       }
-      let profile = await res.json();
-
-      // Cloud PRO Sync: If local profile is free, query Vercel cloud to check if user has active PRO
-      if (profile && !profile.is_pro && profile.email && profile.email !== 'guest@neodrug.app') {
-        try {
-          const cloudRes = await fetch(`https://neo-drug.vercel.app/api/auth/cloud-sync?email=${encodeURIComponent(profile.email)}`);
-          if (cloudRes.ok) {
-            const cloudData = await cloudRes.json();
-            if (cloudData && (cloudData.is_pro || cloudData.tier === 'pro')) {
-              profile.is_pro = true;
-              profile.tier = "pro";
-              profile.days_left = cloudData.days_left;
-              profile.pro_expires_at = cloudData.pro_expires_at;
-              // Synchronize with local database permanently
-              fetch(`${API_BASE}/auth/apply-cloud-sync`, {
-                method: "POST",
-                headers: this.getAuthHeaders(),
-                body: JSON.stringify(cloudData)
-              }).catch(() => {});
-            }
-          }
-        } catch (syncErr) {
-          console.debug("Cloud sync offline or skipped:", syncErr);
-        }
-      }
+      const profile = await res.json();
 
       if (profile && profile.email && profile.email !== 'guest@neodrug.app') {
         localStorage.setItem("NEO_USER_PROFILE", JSON.stringify(profile));
@@ -147,12 +166,26 @@ window.api = {
     }
   },
 
-  async checkDesktopBridge() {
+  async getBridgeConfig() {
+    // The desktop shell (pywebview) hands us a one-time state and the local bridge URL.
     try {
-      const res = await fetch(`${API_BASE}/auth/desktop-bridge-poll`);
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_bridge_config) {
+        const config = await window.pywebview.api.get_bridge_config();
+        if (config && config.state && config.base) return config;
+      }
+    } catch (e) {}
+    return { state: "", base: "" };
+  },
+
+  async checkDesktopBridge(state, base = "") {
+    if (!state) return null;
+    const root = String(base || "").replace(/\/+$/, "");
+    if (!root) return null;
+    try {
+      const res = await fetch(`${root}/api/auth/desktop-bridge-poll?state=${encodeURIComponent(state)}`);
       if (res.ok) {
         const data = await res.json();
-        return data.token;
+        return data.token || null;
       }
     } catch (e) {}
     return null;
@@ -343,7 +376,7 @@ window.api = {
             "Authorization": `Bearer ${groqKey}`
           },
           body: JSON.stringify({
-            model: imagesList.length > 0 ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile",
+            model: imagesList.length > 0 ? "meta-llama/llama-4-scout-17b-16e-instruct" : "llama-3.3-70b-versatile",
             messages: messages,
             max_tokens: isDual ? 2000 : 1500
           })

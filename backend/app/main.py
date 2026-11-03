@@ -1,19 +1,25 @@
 import re
 import math
 import json
+import hmac
+import secrets
+import threading
+import time
 import urllib.parse
 import urllib.request
+import urllib.error
 import traceback
 from fastapi import FastAPI, Depends, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse
+from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse, JSONResponse
 import os
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
-from sqlalchemy import or_
+from sqlalchemy import or_, text, func
 
 from . import models, schemas, auth, limiter
-from .database import engine, get_db, SessionLocal
+from .database import engine, get_db, SessionLocal, is_serverless, PERSISTENT_STORAGE
 
 # Create any missing tables safely without touching existing drugs table
 models.Base.metadata.create_all(bind=engine)
@@ -27,18 +33,61 @@ except Exception as _e:
 
 app = FastAPI(title="Neo Drug API")
 
+# Bearer tokens are used for auth, not cookies, so credentialed CORS is not needed.
+# Restrict origins through ALLOWED_ORIGINS (comma separated) in production.
+_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in (os.getenv("ALLOWED_ORIGINS") or "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS or ["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "x-api-key", "x-gemini-key", "x-groq-key", "x-admin-key"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
+    return response
 
 @app.get("/api")
 @app.get("/api/")
 def api_root():
     return {"message": "API is running perfectly on Vercel!"}
+
+
+@app.get("/api/health")
+def health(db: Session = Depends(get_db)):
+    """Lightweight readiness probe. Never exposes secrets."""
+    db_ok = True
+    db_error = None
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exc:
+        db_ok = False
+        db_error = str(exc)[:200]
+
+    dialect = engine.dialect.name
+
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "database": dialect,
+        "database_ok": db_ok,
+        "database_error": db_error,
+        "persistent_storage": PERSISTENT_STORAGE,
+        "jwt_secret_configured": bool(os.getenv("JWT_SECRET")),
+        "admin_key_configured": bool(os.getenv("ADMIN_KEY")),
+    }
 
 @app.get("/api/drugs", response_model=schemas.PaginatedDrugs)
 def get_drugs(
@@ -121,6 +170,45 @@ def get_drugs(
 # API keys are loaded from environment variables and .env files
 # Set GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY in your deployment environment
 
+
+def _env_models(var_name: str, defaults: list) -> list:
+    """Allow overriding the model fallback chain without touching the code."""
+    raw = (os.getenv(var_name) or "").strip()
+    if not raw:
+        return defaults
+    parsed = [model.strip() for model in raw.split(",") if model.strip()]
+    return parsed or defaults
+
+
+# Model chains are updated for 2026. The old Groq Llama-3.2 vision previews and
+# Gemini 1.5 models were retired by their providers and now return 404/410.
+GROQ_VISION_MODELS = [
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+]
+GROQ_TEXT_MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+]
+GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+]
+OPENROUTER_VISION_MODELS = [
+    "google/gemini-2.5-flash",
+    "google/gemini-2.0-flash-001",
+    "qwen/qwen-2.5-vl-72b-instruct",
+]
+OPENROUTER_TEXT_MODELS = [
+    "google/gemini-2.5-flash",
+    "google/gemini-2.0-flash-001",
+    "meta-llama/llama-3.3-70b-instruct",
+]
+
+
 def _call_groq(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int) -> str:
     url = "https://api.groq.com/openai/v1/chat/completions"
     messages = []
@@ -146,19 +234,10 @@ def _call_groq(api_key: str, prompt: str, system_prompt: str, all_images: list, 
                 "image_url": {"url": clean_b64}
             })
         messages.append({"role": "user", "content": user_content})
-        models_to_try = [
-            "llama-3.2-11b-vision-preview",
-            "llama-3.2-90b-vision-preview"
-        ]
+        models_to_try = _env_models("GROQ_VISION_MODELS", GROQ_VISION_MODELS)
     else:
         messages.append({"role": "user", "content": prompt})
-        models_to_try = [
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "llama3-70b-8192",
-            "llama3-8b-8192",
-            "gemma2-9b-it"
-        ]
+        models_to_try = _env_models("GROQ_TEXT_MODELS", GROQ_TEXT_MODELS)
 
     for m in models_to_try:
         payload = json.dumps({
@@ -191,7 +270,7 @@ def _call_groq(api_key: str, prompt: str, system_prompt: str, all_images: list, 
     return None
 
 
-def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list) -> str:
+def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int = 1800) -> str:
     contents = []
     if history:
         for item in history:
@@ -219,10 +298,15 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
         current_parts.append({"text": prompt})
     if all_images:
         for img in all_images:
-            clean_b64 = re.sub(r'^data:image\/[a-zA-Z0-9\.\+_\-]+;base64,', '', str(img).strip())
+            raw_img = str(img).strip()
+            mime_type = "image/jpeg"
+            mime_match = re.match(r'^data:(image/[a-zA-Z0-9\.\+_\-]+);base64,', raw_img)
+            if mime_match:
+                mime_type = mime_match.group(1)
+            clean_b64 = re.sub(r'^data:image\/[a-zA-Z0-9\.\+_\-]+;base64,', '', raw_img)
             current_parts.append({
                 "inlineData": {
-                    "mimeType": "image/jpeg",
+                    "mimeType": mime_type,
                     "data": clean_b64
                 }
             })
@@ -240,12 +324,17 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
 
     req_dict = {"contents": contents}
     if system_prompt:
-        req_dict["system_instruction"] = {
+        # camelCase is the field name accepted by the Gemini REST API.
+        req_dict["systemInstruction"] = {
             "parts": [{"text": system_prompt}]
         }
+    req_dict["generationConfig"] = {
+        "maxOutputTokens": int(max_tokens or 1800),
+        "temperature": 0.4,
+    }
 
     payload = json.dumps(req_dict).encode('utf-8')
-    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+    models_to_try = _env_models("GEMINI_MODELS", GEMINI_MODELS)
     for m in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
         req = urllib.request.Request(url, data=payload, headers={
@@ -275,7 +364,9 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
 
 
 def _call_openrouter(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int) -> str:
-    url = "https://openrouter.ai/api/v1/chat/completions" if api_key.startswith("sk-or-") else "https://router.bynara.id/v1/chat/completions"
+    # Always talk to the official OpenRouter endpoint. Third-party "router" proxies
+    # would receive the user's API key in plaintext.
+    url = "https://openrouter.ai/api/v1/chat/completions"
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
@@ -299,20 +390,10 @@ def _call_openrouter(api_key: str, prompt: str, system_prompt: str, all_images: 
                 "image_url": {"url": clean_b64}
             })
         messages.append({"role": "user", "content": user_content})
-        models_to_try = [
-            "google/gemini-2.0-flash-001",
-            "google/gemini-2.0-flash-lite-preview-02-05:free",
-            "qwen/qwen-2.5-vl-72b-instruct:free",
-            "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "google/gemini-flash-1.5"
-        ]
+        models_to_try = _env_models("OPENROUTER_VISION_MODELS", OPENROUTER_VISION_MODELS)
     else:
         messages.append({"role": "user", "content": prompt})
-        models_to_try = [
-            "google/gemini-2.0-flash-001",
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "meta-llama/llama-3.1-8b-instruct:free"
-        ]
+        models_to_try = _env_models("OPENROUTER_TEXT_MODELS", OPENROUTER_TEXT_MODELS)
 
     for m in models_to_try:
         payload = json.dumps({
@@ -371,7 +452,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 groq_keys.append(ck)
             elif ck.startswith(("AIzaSy", "AQ")):
                 gemini_keys.append(ck)
-            elif ck.startswith(("sk-or-", "sk-nry-")):
+            elif ck.startswith("sk-or-"):
                 openrouter_keys.append(ck)
 
     env_groq = os.getenv("GROQ_API_KEY")
@@ -393,7 +474,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
             groq_keys.append(k)
         elif k.startswith(("AIzaSy", "AQ")):
             gemini_keys.append(k)
-        elif k.startswith(("sk-or-", "sk-nry-")):
+        elif k.startswith("sk-or-"):
             openrouter_keys.append(k)
 
     # Read from local .env files if present
@@ -422,7 +503,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                                 groq_keys.append(val)
                             elif val.startswith(("AIzaSy", "AQ")):
                                 gemini_keys.append(val)
-                            elif val.startswith(("sk-or-", "sk-nry-")):
+                            elif val.startswith("sk-or-"):
                                 openrouter_keys.append(val)
             except Exception:
                 pass
@@ -459,7 +540,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
     # For text: Groq -> Google Gemini -> OpenRouter
     if has_images:
         for k in gemini_keys:
-            res = _call_gemini(k, prompt, system_prompt, all_images, history)
+            res = _call_gemini(k, prompt, system_prompt, all_images, history, max_tokens)
             if res:
                 return res
 
@@ -479,7 +560,7 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 return res
 
         for k in gemini_keys:
-            res = _call_gemini(k, prompt, system_prompt, all_images, history)
+            res = _call_gemini(k, prompt, system_prompt, all_images, history, max_tokens)
             if res:
                 return res
 
@@ -717,238 +798,295 @@ def check_interaction(req: schemas.InteractionRequest, request: Request, db: Ses
 
 # --- Authentication & Subscription APIs ---
 
+EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+# Comma-separated list of accepted Google OAuth client IDs.
+GOOGLE_CLIENT_IDS = [
+    client_id.strip()
+    for client_id in (os.getenv("GOOGLE_CLIENT_ID") or "").split(",")
+    if client_id.strip()
+] or ["632334576806-ta1instgonlh0rmbq4mdun5917s8n2lu.apps.googleusercontent.com"]
+
+
+def _normalize_email(email) -> str:
+    return (email or "").strip().lower()
+
+
+_DUMMY_PASSWORD_HASH = auth.hash_password(secrets.token_urlsafe(16))
+
+
+def _valid_email(email: str) -> bool:
+    return bool(email) and len(email) <= 254 and bool(EMAIL_REGEX.match(email))
+
+
+def _pro_status(user: models.User):
+    """Return (is_pro, days_left) and downgrade expired subscriptions."""
+    now = datetime.utcnow()
+    if user.tier == "pro":
+        if not user.pro_expires_at:
+            return True, 9999
+        if user.pro_expires_at > now:
+            return True, max(1, (user.pro_expires_at - now).days)
+    return False, 0
+
+
+def _profile_for_user(user: models.User, db: Session) -> schemas.UserProfileResponse:
+    is_pro, days_left = _pro_status(user)
+    if not is_pro and user.tier != "free":
+        user.tier = "free"
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    usage = db.query(models.UsageRecord).filter(
+        models.UsageRecord.user_id == user.id,
+        models.UsageRecord.date_str == datetime.utcnow().strftime("%Y-%m-%d"),
+    ).first()
+
+    return schemas.UserProfileResponse(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        tier=user.tier or "free",
+        is_pro=is_pro,
+        pro_expires_at=user.pro_expires_at,
+        days_left=days_left,
+        ai_queries_used=usage.ai_queries_count if usage else 0,
+        ai_queries_limit=999999 if is_pro else limiter.FREE_LIMITS["ai_chat"],
+        single_ocr_used=usage.single_ocr_count if usage else 0,
+        single_ocr_limit=999999 if is_pro else limiter.FREE_LIMITS["single_ocr"],
+        dual_ocr_used=usage.dual_ocr_count if usage else 0,
+        dual_ocr_limit=999999 if is_pro else limiter.FREE_LIMITS["dual_ocr"],
+        is_unlimited=is_pro,
+    )
+
+
+def _guest_profile(client_ip: str, db: Session) -> schemas.UserProfileResponse:
+    usage = db.query(models.UsageRecord).filter(
+        models.UsageRecord.client_ip == client_ip,
+        models.UsageRecord.date_str == datetime.utcnow().strftime("%Y-%m-%d"),
+    ).first()
+    return schemas.UserProfileResponse(
+        id=0,
+        email="guest@neodrug.app",
+        username="زائر",
+        tier="free",
+        is_pro=False,
+        pro_expires_at=None,
+        days_left=0,
+        ai_queries_used=usage.ai_queries_count if usage else 0,
+        ai_queries_limit=limiter.FREE_LIMITS["ai_chat"],
+        single_ocr_used=usage.single_ocr_count if usage else 0,
+        single_ocr_limit=limiter.FREE_LIMITS["single_ocr"],
+        dual_ocr_used=usage.dual_ocr_count if usage else 0,
+        dual_ocr_limit=limiter.FREE_LIMITS["dual_ocr"],
+        is_unlimited=False,
+    )
+
+
+def _issue_token(user: models.User) -> str:
+    return auth.create_jwt_token({
+        "sub": user.id,
+        "email": user.email,
+        "username": user.username,
+        "role": user.role or "user",
+        "tier": user.tier,
+        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None,
+    })
+
+
+def _unique_username(db: Session, base: str, exclude_user_id=None) -> str:
+    """Usernames are unique in the DB; never fail registration because of a clash."""
+    root = (base or "user").strip()[:40] or "user"
+    candidate = root
+    suffix = 1
+    while True:
+        query = db.query(models.User).filter(models.User.username == candidate)
+        if exclude_user_id is not None:
+            query = query.filter(models.User.id != exclude_user_id)
+        if not query.first():
+            return candidate
+        suffix += 1
+        candidate = f"{root}{suffix}"[:40]
+
+
 @app.post("/api/auth/register", response_model=schemas.AuthResponse)
 def register(req: schemas.RegisterRequest, db: Session = Depends(get_db)):
-    email_clean = req.email.strip().lower()
-    email_regex = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-    if not email_clean or "@" not in email_clean or not re.match(email_regex, email_clean):
+    email_clean = _normalize_email(req.email)
+    if not _valid_email(email_clean):
         raise HTTPException(status_code=400, detail="يرجى إدخال بريد إلكتروني صحيح وموثوق (مثال: name@gmail.com).")
-    if len(req.password) < 6:
-        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن لا تقل عن 6 أحرف.")
+    if len(req.password) < 8:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن لا تقل عن 8 أحرف.")
 
     existing_user = db.query(models.User).filter(models.User.email == email_clean).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.")
 
-    username_clean = req.username.strip() if req.username else email_clean.split("@")[0]
-    pwd_hash = auth.hash_password(req.password)
-
     new_user = models.User(
         email=email_clean,
-        username=username_clean,
-        password_hash=pwd_hash,
-        tier="free"
+        username=_unique_username(db, req.username or email_clean.split("@")[0]),
+        password_hash=auth.hash_password(req.password),
+        tier="free",
     )
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني أو اسم المستخدم مسجل بالفعل.")
     db.refresh(new_user)
 
-    token = auth.create_jwt_token({
-        "sub": new_user.id,
-        "email": new_user.email,
-        "username": new_user.username,
-        "role": new_user.role or "user",
-        "tier": new_user.tier,
-        "pro_expires_at": new_user.pro_expires_at.isoformat() if new_user.pro_expires_at else None
-    })
-
-    user_profile = schemas.UserProfileResponse(
-        id=new_user.id,
-        email=new_user.email,
-        username=new_user.username,
-        tier=new_user.tier,
-        is_pro=False,
-        pro_expires_at=None,
-        days_left=0,
-        ai_queries_used=0,
-        ai_queries_limit=5,
-        single_ocr_used=0,
-        single_ocr_limit=1,
-        dual_ocr_used=0,
-        dual_ocr_limit=0,
-        is_unlimited=False
-    )
-    return {"token": token, "user": user_profile, "message": "تم إنشاء الحساب بنجاح!"}
+    return {
+        "token": _issue_token(new_user),
+        "user": _profile_for_user(new_user, db),
+        "message": "تم إنشاء الحساب بنجاح!",
+    }
 
 @app.post("/api/auth/login", response_model=schemas.AuthResponse)
 def login(req: schemas.LoginRequest, db: Session = Depends(get_db)):
-    email_clean = req.email.strip().lower()
-    if not email_clean or "@" not in email_clean:
+    email_clean = _normalize_email(req.email)
+    if not _valid_email(email_clean):
         raise HTTPException(status_code=400, detail="يرجى إدخال بريد إلكتروني صحيح.")
-    if len(req.password) < 6:
-        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن لا تقل عن 6 أحرف.")
+    if not req.password:
+        raise HTTPException(status_code=400, detail="يرجى إدخال كلمة المرور.")
 
     user = db.query(models.User).filter(models.User.email == email_clean).first()
     if not user:
+        # Equalize timing so the response does not reveal whether an email exists.
+        auth.verify_password(req.password, _DUMMY_PASSWORD_HASH)
         raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
-    else:
-        # If user exists, verify password or sync if password was reset
-        if auth.verify_password(req.password, user.password_hash):
-            pass
-        elif user.password_hash == "verified_jwt_session" and len(req.password) >= 6:
-            user.password_hash = auth.hash_password(req.password)
-            db.commit()
-        else:
-            raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
 
-    is_pro = False
-    days_left = 0
-    if user.tier == "pro":
-        if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
-            is_pro = True
-            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
-        elif not user.pro_expires_at:
-            is_pro = True
-            days_left = 9999
-        else:
-            user.tier = "free"
-            db.commit()
+    # Unusable random hashes (Google / bridge accounts) can never match a password.
+    if not auth.verify_password(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
 
-    token = auth.create_jwt_token({
-        "sub": user.id,
-        "email": user.email,
-        "username": user.username,
-        "role": user.role or "user",
-        "tier": user.tier,
-        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
-    })
-
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
-    usage = db.query(models.UsageRecord).filter(
-        models.UsageRecord.user_id == user.id,
-        models.UsageRecord.date_str == today_str
-    ).first()
-
-    user_profile = schemas.UserProfileResponse(
-        id=user.id,
-        email=user.email,
-        username=user.username,
-        tier=user.tier,
-        is_pro=is_pro,
-        pro_expires_at=user.pro_expires_at,
-        days_left=days_left,
-        ai_queries_used=usage.ai_queries_count if usage else 0,
-        ai_queries_limit=5 if not is_pro else 999999,
-        single_ocr_used=usage.single_ocr_count if usage else 0,
-        single_ocr_limit=1 if not is_pro else 999999,
-        dual_ocr_used=usage.dual_ocr_count if usage else 0,
-        dual_ocr_limit=0 if not is_pro else 999999,
-        is_unlimited=is_pro
-    )
-    return {"token": token, "user": user_profile, "message": "تم تسجيل الدخول بنجاح!"}
+    # Normalize the profile (and downgrade an expired plan) before signing the token,
+    # so the token's tier always matches the profile returned to the client.
+    profile = _profile_for_user(user, db)
+    return {
+        "token": _issue_token(user),
+        "user": profile,
+        "message": "تم تسجيل الدخول بنجاح!",
+    }
 
 @app.post("/api/auth/google", response_model=schemas.AuthResponse)
 def google_auth(req: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
-    email_clean = None
-    username_clean = None
+    """
+    Verify a Google ID token server-side.
 
-    # 1. Decode Google Credential if JWT is passed
-    if req.credential:
-        try:
-            import json, base64
-            parts = req.credential.split(".")
-            if len(parts) >= 2:
-                payload_str = parts[1]
-                padding = '=' * ((4 - len(payload_str) % 4) % 4)
-                decoded_bytes = base64.urlsafe_b64decode(payload_str + padding)
-                g_payload = json.loads(decoded_bytes.decode('utf-8'))
-                email_clean = g_payload.get("email", "").strip().lower()
-                username_clean = g_payload.get("name") or g_payload.get("given_name")
-        except Exception as e:
-            print("Google token decode error:", e)
+    The previous implementation merely base64-decoded the token payload, which let
+    anyone forge an arbitrary email. A Google ID token must be validated by Google
+    itself; we use the official tokeninfo endpoint and also check the audience.
+    """
+    credential = (req.credential or "").strip()
+    if not credential:
+        raise HTTPException(
+            status_code=400,
+            detail="تسجيل الدخول بحساب Google يتطلب التحقق الرسمي من Google. استخدم زر Google الرسمي.",
+        )
 
-    if not email_clean and req.email:
-        email_clean = req.email.strip().lower()
-        username_clean = req.name or email_clean.split("@")[0]
+    try:
+        tokeninfo_url = f"{GOOGLE_TOKENINFO_URL}?id_token={urllib.parse.quote(credential, safe='')}"
+        token_request = urllib.request.Request(tokeninfo_url, headers={"User-Agent": "NeoDrug/1.0"})
+        with urllib.request.urlopen(token_request, timeout=8) as response:
+            google_data = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        print("Google token verification failed:", exc)
+        raise HTTPException(status_code=401, detail="تعذر التحقق من حساب Google. حاول مرة أخرى.")
 
-    if not email_clean or "@" not in email_clean:
+    if str(google_data.get("email_verified", "")).lower() not in ("true", "1"):
+        raise HTTPException(status_code=401, detail="بريد حساب Google غير موثّق.")
+    if google_data.get("aud") not in GOOGLE_CLIENT_IDS:
+        raise HTTPException(status_code=401, detail="تطبيق Google غير معروف لهذا الموقع.")
+
+    email_clean = _normalize_email(google_data.get("email"))
+    if not _valid_email(email_clean):
         raise HTTPException(status_code=400, detail="تعذر استخراج البريد الإلكتروني من حساب Google.")
 
-    if not username_clean:
-        username_clean = email_clean.split("@")[0]
+    display_name = (google_data.get("name") or google_data.get("given_name") or "").strip()
 
     user = db.query(models.User).filter(models.User.email == email_clean).first()
     if not user:
         user = models.User(
             email=email_clean,
-            username=username_clean,
-            password_hash="google_oauth_verified",
-            tier="free"
+            username=_unique_username(db, display_name or email_clean.split("@")[0]),
+            # Random unusable password: this account is only reachable through Google.
+            password_hash=auth.hash_password(secrets.token_urlsafe(32)),
+            tier="free",
         )
         db.add(user)
         try:
             db.commit()
             db.refresh(user)
-        except Exception:
+        except IntegrityError:
             db.rollback()
             user = db.query(models.User).filter(models.User.email == email_clean).first()
+            if not user:
+                raise HTTPException(status_code=500, detail="تعذر إنشاء الحساب. حاول مرة أخرى.")
 
-    is_pro = False
-    days_left = 0
-    if user.tier == "pro":
-        if user.pro_expires_at and user.pro_expires_at > datetime.utcnow():
-            is_pro = True
-            days_left = max(1, (user.pro_expires_at - datetime.utcnow()).days)
-        elif not user.pro_expires_at:
-            is_pro = True
-            days_left = 9999
-        else:
-            user.tier = "free"
-            db.commit()
+    profile = _profile_for_user(user, db)
+    return {
+        "token": _issue_token(user),
+        "user": profile,
+        "message": "تم تسجيل الدخول بحساب Google بنجاح! 🌐",
+    }
 
-    token = auth.create_jwt_token({
-        "sub": user.id,
-        "email": user.email,
-        "username": user.username,
-        "role": user.role or "user",
-        "tier": user.tier,
-        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
-    })
+# --- Desktop login bridge (loopback only) -------------------------------------
+# The old implementation kept a single global token that any anonymous caller
+# could poll from production. Tokens are now bound to a one-time random state,
+# expire quickly, and the endpoints refuse to run outside the desktop app.
 
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
-    usage = db.query(models.UsageRecord).filter(
-        models.UsageRecord.user_id == user.id,
-        models.UsageRecord.date_str == today_str
-    ).first()
+_DESKTOP_BRIDGE_TTL_SECONDS = 180
+_desktop_bridge_tokens = {}
+_desktop_bridge_lock = threading.Lock()
 
-    user_profile = schemas.UserProfileResponse(
-        id=user.id,
-        email=user.email,
-        username=user.username,
-        tier=user.tier,
-        is_pro=is_pro,
-        pro_expires_at=user.pro_expires_at,
-        days_left=days_left,
-        ai_queries_used=usage.ai_queries_count if usage else 0,
-        ai_queries_limit=5 if not is_pro else 999999,
-        single_ocr_used=usage.single_ocr_count if usage else 0,
-        single_ocr_limit=1 if not is_pro else 999999,
-        dual_ocr_used=usage.dual_ocr_count if usage else 0,
-        dual_ocr_limit=0 if not is_pro else 999999,
-        is_unlimited=is_pro
-    )
 
-    return {"token": token, "user": user_profile, "message": "تم تسجيل الدخول بحساب Google بنجاح! 🌐"}
+def _is_local_desktop_request(request: Request) -> bool:
+    if os.getenv("NEO_DESKTOP_APP") != "1":
+        return False
+    host = (request.client.host if request.client else "") or ""
+    return host in ("127.0.0.1", "::1", "localhost")
 
-_latest_desktop_token = None
+
+def _prune_bridge_tokens(now: float) -> None:
+    for key in [k for k, (_, expires) in _desktop_bridge_tokens.items() if expires <= now]:
+        _desktop_bridge_tokens.pop(key, None)
+
+
+def _valid_bridge_state(state: str) -> bool:
+    return bool(state) and 16 <= len(state) <= 128 and all(c.isalnum() or c in "-_" for c in state)
+
 
 @app.get("/api/auth/desktop-bridge", response_class=HTMLResponse)
-def desktop_bridge_callback(token: str = Query(...)):
-    global _latest_desktop_token
-    _latest_desktop_token = token
-    return f"""<!DOCTYPE html>
+def desktop_bridge_callback(request: Request, token: str = Query(...), state: str = Query(...)):
+    if not _is_local_desktop_request(request):
+        raise HTTPException(status_code=404, detail="Not found")
+    state = (state or "").strip()
+    if not _valid_bridge_state(state):
+        raise HTTPException(status_code=400, detail="Invalid bridge state")
+    token = (token or "").strip()
+    if not token or len(token) > 4096 or token.count(".") != 2:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    now = time.time()
+    with _desktop_bridge_lock:
+        _prune_bridge_tokens(now)
+        _desktop_bridge_tokens[state] = (token, now + _DESKTOP_BRIDGE_TTL_SECONDS)
+
+    return """<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تم تسجيل الدخول بنجاح</title>
 <style>
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0b1120; color: #f8fafc; text-align: center; padding: 20px; box-sizing: border-box; }}
-  .card {{ background: #1e293b; border: 1px solid #334155; padding: 36px 28px; border-radius: 24px; max-width: 460px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }}
-  .icon {{ font-size: 56px; margin-bottom: 16px; }}
-  h1 {{ font-size: 24px; margin: 0 0 12px 0; color: #38bdf8; font-weight: 800; }}
-  p {{ color: #94a3b8; font-size: 15px; line-height: 1.7; margin-bottom: 24px; }}
-  .btn {{ background: #0284c7; color: #fff; border: none; padding: 14px 28px; border-radius: 14px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; box-sizing: border-box; }}
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0b1120; color: #f8fafc; text-align: center; padding: 20px; box-sizing: border-box; }
+  .card { background: #1e293b; border: 1px solid #334155; padding: 36px 28px; border-radius: 24px; max-width: 460px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+  .icon { font-size: 56px; margin-bottom: 16px; }
+  h1 { font-size: 24px; margin: 0 0 12px 0; color: #38bdf8; font-weight: 800; }
+  p { color: #94a3b8; font-size: 15px; line-height: 1.7; margin-bottom: 24px; }
+  .btn { background: #0284c7; color: #fff; border: none; padding: 14px 28px; border-radius: 14px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; box-sizing: border-box; }
 </style>
 </head>
 <body>
@@ -958,220 +1096,170 @@ def desktop_bridge_callback(token: str = Query(...)):
     <p>تم ربط حسابك بتطبيق Neo Drug لسطح المكتب بنجاح. يمكنك الآن إغلاق هذا التبويب والعودة فوراً للتطبيق لاستخدامه.</p>
     <button class="btn" onclick="window.close()">إغلاق هذه الصفحة والعودة للتطبيق 🚀</button>
   </div>
-  <script>
-    try {{
-      localStorage.setItem('neodrug_token', '{token}');
-      localStorage.setItem('NEO_AUTH_TOKEN', '{token}');
-    }} catch(e) {{}}
-    setTimeout(function() {{
-      window.close();
-    }}, 3500);
-  </script>
+  <script>setTimeout(function () { window.close(); }, 3500);</script>
 </body>
 </html>"""
 
-@app.get("/api/auth/desktop-bridge-poll")
-def desktop_bridge_poll():
-    global _latest_desktop_token
-    t = _latest_desktop_token
-    _latest_desktop_token = None
-    return {"token": t}
 
-@app.get("/api/auth/cloud-sync")
-def cloud_sync_status(email: str = Query(...), db: Session = Depends(get_db)):
-    email_clean = email.strip().lower()
+@app.get("/api/auth/desktop-bridge-poll")
+def desktop_bridge_poll(request: Request, state: str = Query(...)):
+    if not _is_local_desktop_request(request):
+        raise HTTPException(status_code=404, detail="Not found")
+    state = (state or "").strip()
+    if not _valid_bridge_state(state):
+        raise HTTPException(status_code=400, detail="Invalid bridge state")
+
+    now = time.time()
+    with _desktop_bridge_lock:
+        _prune_bridge_tokens(now)
+        entry = _desktop_bridge_tokens.pop(state, None)
+    return {"token": entry[0] if entry else None}
+
+
+@app.post("/api/auth/exchange", response_model=schemas.AuthResponse)
+def exchange_cloud_token(req: schemas.ExchangeTokenRequest, db: Session = Depends(get_db)):
+    """
+    Exchange a token issued by the cloud deployment for a local token.
+
+    The cloud token is verified by asking the cloud API for the profile; the local
+    server never trusts a tier or email supplied in the request body.
+    """
+    cloud_token = (req.token or "").strip()
+    if not cloud_token:
+        raise HTTPException(status_code=400, detail="رمز الدخول السحابي مطلوب.")
+
+    cloud_base = (os.getenv("NEO_CLOUD_API_BASE") or "https://neo-drug.vercel.app").rstrip("/")
+    try:
+        cloud_request = urllib.request.Request(
+            f"{cloud_base}/api/auth/me",
+            headers={"Authorization": f"Bearer {cloud_token}", "Accept": "application/json"},
+        )
+        with urllib.request.urlopen(cloud_request, timeout=8) as response:
+            cloud_profile = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        print("Cloud token exchange failed:", exc)
+        raise HTTPException(status_code=401, detail="تعذر التحقق من الحساب السحابي.")
+
+    email_clean = _normalize_email(cloud_profile.get("email"))
+    if not cloud_profile.get("id") or not _valid_email(email_clean):
+        raise HTTPException(status_code=401, detail="الحساب السحابي غير صالح.")
+
     user = db.query(models.User).filter(models.User.email == email_clean).first()
     if not user:
-        return {"found": False, "is_pro": False, "tier": "free"}
-
-    now_naive = datetime.utcnow()
-    is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now_naive))
-    days_left = max(1, (user.pro_expires_at - now_naive).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
-
-    return {
-        "found": True,
-        "email": user.email,
-        "tier": user.tier,
-        "is_pro": is_pro,
-        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None,
-        "days_left": days_left
-    }
-
-@app.post("/api/auth/apply-cloud-sync")
-def apply_cloud_sync(req: dict, request: Request, db: Session = Depends(get_db)):
-    email = req.get("email")
-    if not email:
-        raise HTTPException(status_code=400, detail="Missing email")
-    user = db.query(models.User).filter(models.User.email == email.strip().lower()).first()
-    if not user:
         user = models.User(
-            email=email.strip().lower(),
-            username=email.split("@")[0],
-            password_hash="cloud_synced",
-            tier=req.get("tier", "pro")
+            email=email_clean,
+            username=_unique_username(db, cloud_profile.get("username") or email_clean.split("@")[0]),
+            password_hash=auth.hash_password(secrets.token_urlsafe(32)),
+            tier="free",
         )
         db.add(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            db.rollback()
+            user = db.query(models.User).filter(models.User.email == email_clean).first()
+            if not user:
+                raise HTTPException(status_code=500, detail="تعذر إنشاء الحساب المحلي.")
 
-    if req.get("is_pro") or req.get("tier") == "pro":
+    # Only the cloud server's verdict about PRO is trusted here.
+    if cloud_profile.get("is_pro") or cloud_profile.get("tier") == "pro":
         user.tier = "pro"
-        exp = req.get("pro_expires_at")
-        if exp:
+        expires_at = cloud_profile.get("pro_expires_at")
+        if expires_at:
             try:
-                user.pro_expires_at = datetime.fromisoformat(exp.replace("Z", "+00:00")).replace(tzinfo=None)
+                user.pro_expires_at = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00")).replace(tzinfo=None)
             except Exception:
                 user.pro_expires_at = None
         else:
             user.pro_expires_at = None
-        db.commit()
-    return {"success": True}
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    profile = _profile_for_user(user, db)
+    return {
+        "token": _issue_token(user),
+        "user": profile,
+        "message": "تم مزامنة الحساب السحابي بنجاح!",
+    }
 
 @app.get("/api/auth/me", response_model=schemas.UserProfileResponse)
 def get_me(request: Request, db: Session = Depends(get_db)):
-    client_ip = limiter.get_client_ip(request)
     user = auth.get_current_user_optional(request, db)
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
-
     if user:
-        # If this is desktop standalone app, and local DB says free, check cloud sync with Vercel
-        if os.getenv("NEO_DESKTOP_APP") == "1" and user.tier != "pro":
-            try:
-                import urllib.request, json
-                cloud_url = f"https://neo-drug.vercel.app/api/auth/cloud-sync?email={urllib.parse.quote(user.email)}"
-                req_sync = urllib.request.Request(cloud_url, headers={"User-Agent": "NeoDrug-Desktop-Sync"})
-                with urllib.request.urlopen(req_sync, timeout=2.0) as resp:
-                    if resp.status == 200:
-                        cdata = json.loads(resp.read().decode("utf-8"))
-                        if cdata.get("is_pro") or cdata.get("tier") == "pro":
-                            user.tier = "pro"
-                            if cdata.get("pro_expires_at"):
-                                try:
-                                    user.pro_expires_at = datetime.fromisoformat(cdata["pro_expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
-                                except Exception:
-                                    user.pro_expires_at = None
-                            else:
-                                user.pro_expires_at = None
-                            db.commit()
-                            db.refresh(user)
-            except Exception:
-                pass
-
-        now_naive = datetime.utcnow()
-        is_pro = (user.tier == "pro" and (not user.pro_expires_at or user.pro_expires_at > now_naive))
-        days_left = max(1, (user.pro_expires_at - now_naive).days) if (is_pro and user.pro_expires_at) else (9999 if (is_pro and not user.pro_expires_at) else 0)
-        usage = db.query(models.UsageRecord).filter(
-            models.UsageRecord.user_id == user.id,
-            models.UsageRecord.date_str == today_str
-        ).first()
-
-        return schemas.UserProfileResponse(
-            id=user.id,
-            email=user.email,
-            username=user.username,
-            tier=user.tier,
-            is_pro=is_pro,
-            pro_expires_at=user.pro_expires_at,
-            days_left=days_left,
-            ai_queries_used=usage.ai_queries_count if usage else 0,
-            ai_queries_limit=5 if not is_pro else 999999,
-            single_ocr_used=usage.single_ocr_count if usage else 0,
-            single_ocr_limit=1 if not is_pro else 999999,
-            dual_ocr_used=usage.dual_ocr_count if usage else 0,
-            dual_ocr_limit=0 if not is_pro else 999999,
-            is_unlimited=is_pro
-        )
-    else:
-        usage = db.query(models.UsageRecord).filter(
-            models.UsageRecord.client_ip == client_ip,
-            models.UsageRecord.date_str == today_str
-        ).first()
-        return schemas.UserProfileResponse(
-            id=0,
-            email="guest@neodrug.app",
-            username="زائر",
-            tier="free",
-            is_pro=False,
-            pro_expires_at=None,
-            days_left=0,
-            ai_queries_used=usage.ai_queries_count if usage else 0,
-            ai_queries_limit=5,
-            single_ocr_used=usage.single_ocr_count if usage else 0,
-            single_ocr_limit=1,
-            dual_ocr_used=usage.dual_ocr_count if usage else 0,
-            dual_ocr_limit=0,
-            is_unlimited=False
-        )
-
-# Fallback built-in promo codes (permanent across any serverless cold start)
-FALLBACK_PROMO_CODES = {
-    "NEOPRO": {"duration_days": 30, "tier": "pro"},
-    "VIP2026": {"duration_days": 90, "tier": "pro"},
-    "PHARMA2026": {"duration_days": 365, "tier": "pro"},
-    "TRIAL2026": {"duration_days": 7, "tier": "pro"},
-    "PRO2026": {"duration_days": 30, "tier": "pro"},
-    "LIFETIME2026": {"duration_days": 36500, "tier": "pro"}
-}
+        return _profile_for_user(user, db)
+    return _guest_profile(limiter.get_client_ip(request), db)
 
 @app.post("/api/promo/redeem", response_model=schemas.RedeemResponse)
 def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Depends(get_db)):
     user = auth.get_current_user_required(request, db)
-    code_clean = req.code.strip().upper()
+    code_clean = (req.code or "").strip().upper()
     if not code_clean:
         raise HTTPException(status_code=400, detail="يرجى إدخال كود التفعيل.")
+    if len(code_clean) > 64:
+        raise HTTPException(status_code=400, detail="كود التفعيل غير صالح.")
 
-    duration_days = 30
-    tier_to_grant = "pro"
-
-    # 1. Check in DB
-    promo = db.query(models.PromoCode).filter(
-        models.PromoCode.code == code_clean,
-        models.PromoCode.is_active == True
-    ).first()
-
-    if promo:
-        if promo.expires_at and promo.expires_at < datetime.utcnow():
-            raise HTTPException(status_code=400, detail="عذراً، هذا الكود الترويجي منتهي الصلاحية.")
-        if promo.max_uses and promo.used_count >= promo.max_uses:
-            raise HTTPException(status_code=400, detail="تم الوصول إلى الحد الأقصى لاستخدام هذا الكود.")
-        duration_days = promo.duration_days
-        tier_to_grant = promo.tier_granted or "pro"
-        promo.used_count += 1
-    elif code_clean in FALLBACK_PROMO_CODES:
-        info = FALLBACK_PROMO_CODES[code_clean]
-        duration_days = info["duration_days"]
-        tier_to_grant = info["tier"]
-    elif code_clean.startswith("PRO30_") or code_clean.startswith("PRO30-"):
-        duration_days = 30
-    elif code_clean.startswith("PRO90_") or code_clean.startswith("PRO90-"):
-        duration_days = 90
-    elif code_clean.startswith("PRO365_") or code_clean.startswith("PRO365-") or code_clean.startswith("PROYEAR_"):
-        duration_days = 365
-    elif code_clean.startswith("PROLIFE_") or code_clean.startswith("PROLIFE-"):
-        duration_days = 36500
-    else:
+    promo = db.query(models.PromoCode).filter(models.PromoCode.code == code_clean).first()
+    if not promo or not promo.is_active:
         raise HTTPException(status_code=404, detail="كود التفعيل غير صالح أو غير موجود.")
 
     now = datetime.utcnow()
+    if promo.expires_at and promo.expires_at < now:
+        raise HTTPException(status_code=400, detail="عذراً، هذا الكود الترويجي منتهي الصلاحية.")
+    if promo.max_uses and (promo.used_count or 0) >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="تم الوصول إلى الحد الأقصى لاستخدام هذا الكود.")
+
+    already_redeemed = db.query(models.PromoRedemption).filter(
+        models.PromoRedemption.user_id == user.id,
+        models.PromoRedemption.promo_code_id == promo.id,
+    ).first()
+    if already_redeemed:
+        raise HTTPException(status_code=400, detail="لقد استخدمت هذا الكود بالفعل على حسابك.")
+
+    # Atomic increment: two concurrent requests can never exceed max_uses.
+    increment_query = db.query(models.PromoCode).filter(
+        models.PromoCode.id == promo.id,
+        models.PromoCode.is_active == True,
+    )
+    if promo.max_uses:
+        increment_query = increment_query.filter(models.PromoCode.used_count < promo.max_uses)
+    updated = increment_query.update(
+        {models.PromoCode.used_count: func.coalesce(models.PromoCode.used_count, 0) + 1},
+        synchronize_session=False,
+    )
+    if not updated:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="تم الوصول إلى الحد الأقصى لاستخدام هذا الكود.")
+
+    db.add(models.PromoRedemption(
+        user_id=user.id,
+        promo_code_id=promo.id,
+        code_used=code_clean,
+    ))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="لقد استخدمت هذا الكود بالفعل على حسابك.")
+
+    duration_days = promo.duration_days or 30
+    tier_to_grant = promo.tier_granted or "pro"
+
+    db.refresh(user)
     if user.tier == "pro" and user.pro_expires_at and user.pro_expires_at > now:
         user.pro_expires_at = user.pro_expires_at + timedelta(days=duration_days)
     else:
         user.pro_expires_at = now + timedelta(days=duration_days)
-
     user.tier = tier_to_grant
+
     try:
         db.commit()
         db.refresh(user)
     except Exception:
         db.rollback()
-
-    # Issue updated token reflecting PRO tier
-    new_token = auth.create_jwt_token({
-        "sub": user.id,
-        "email": user.email,
-        "username": user.username,
-        "role": user.role or "user",
-        "tier": user.tier,
-        "pro_expires_at": user.pro_expires_at.isoformat() if user.pro_expires_at else None
-    })
+        raise HTTPException(status_code=500, detail="تعذر تفعيل الكود. حاول مرة أخرى.")
 
     return {
         "success": True,
@@ -1179,18 +1267,58 @@ def redeem_promo(req: schemas.RedeemRequest, request: Request, db: Session = Dep
         "tier": user.tier,
         "duration_days": duration_days,
         "pro_expires_at": user.pro_expires_at,
-        "token": new_token
+        "token": _issue_token(user),
     }
 
 # --- Admin Management & Control Panel APIs ---
 
-ADMIN_MASTER_KEY = os.getenv("ADMIN_KEY") or "216180"
-if ADMIN_MASTER_KEY == "216180":
-    print("WARNING: Using default ADMIN_KEY. Please set ADMIN_KEY environment variable.")
+def _resolve_admin_key():
+    """
+    Resolve the admin master key.
+
+    No default key is shipped. On desktop, a random key is generated once and saved
+    next to the local database. On serverless without ADMIN_KEY, header-based admin
+    login is disabled entirely (only accounts with role='admin' can use the panel).
+    """
+    env_key = (os.getenv("ADMIN_KEY") or "").strip()
+    if env_key:
+        if len(env_key) < 8:
+            print("WARNING: ADMIN_KEY is shorter than 8 characters. Use a long random value.")
+        return env_key
+
+    if not is_serverless():
+        try:
+            from .database import DATA_DIR
+
+            key_path = os.path.join(DATA_DIR, ".admin_key")
+            if os.path.exists(key_path):
+                with open(key_path, "r", encoding="utf-8") as handle:
+                    saved = handle.read().strip()
+                if saved:
+                    return saved
+            generated = secrets.token_urlsafe(24)
+            os.makedirs(DATA_DIR, exist_ok=True)
+            with open(key_path, "w", encoding="utf-8") as handle:
+                handle.write(generated)
+            try:
+                os.chmod(key_path, 0o600)
+            except Exception:
+                pass
+            print(f"INFO: generated a local admin key and stored it at {key_path}")
+            return generated
+        except Exception as exc:
+            print(f"WARNING: could not persist local admin key: {exc}")
+
+    print("WARNING: ADMIN_KEY is not set. Header-based admin access is disabled.")
+    return None
+
+
+ADMIN_MASTER_KEY = _resolve_admin_key()
+
 
 def check_admin_permission(request: Request, db: Session):
-    admin_key = request.headers.get("x-admin-key") or request.headers.get("admin-key")
-    if admin_key and admin_key.strip() == ADMIN_MASTER_KEY:
+    admin_key = (request.headers.get("x-admin-key") or request.headers.get("admin-key") or "").strip()
+    if ADMIN_MASTER_KEY and admin_key and hmac.compare_digest(admin_key, ADMIN_MASTER_KEY):
         return True
     user = auth.get_current_user_optional(request, db)
     if user and user.role == "admin":
@@ -1491,15 +1619,18 @@ def upgrade_user_by_email(req: schemas.AdminUpgradeByEmailRequest, request: Requ
     tier_val = req.tier.lower() if req.tier else "pro"
 
     if not user:
+        # Never create accounts with a guessable password (previously "123456").
+        temporary_password = secrets.token_urlsafe(12)
         user = models.User(
             email=email_clean,
-            username=email_clean.split("@")[0],
-            password_hash=auth.hash_password("123456"),
+            username=_unique_username(db, email_clean.split("@")[0]),
+            password_hash=auth.hash_password(temporary_password),
             tier=tier_val,
             pro_expires_at=None if dur >= 30000 else datetime.utcnow() + timedelta(days=dur)
         )
         db.add(user)
     else:
+        temporary_password = None
         user.tier = tier_val
         if tier_val == "pro":
             if dur >= 30000:
@@ -1525,7 +1656,8 @@ def upgrade_user_by_email(req: schemas.AdminUpgradeByEmailRequest, request: Requ
         "message": f"تم تفعيل باقة {tier_val.upper()} بنجاح للبريد {email_clean}! يمكن للمستخدم تسجيل الدخول الآن.",
         "email": user.email,
         "tier": user.tier,
-        "pro_expires_at": user.pro_expires_at
+        "pro_expires_at": user.pro_expires_at,
+        "temporary_password": temporary_password,
     }
 
 @app.get("/api/admin/promos", response_model=list[schemas.AdminPromoItem])
@@ -1586,6 +1718,14 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
     client_ip = limiter.get_client_ip(request)
     user = auth.get_current_user_optional(request, db)
 
+    if len(msg) > 4000:
+        raise HTTPException(status_code=400, detail="الرسالة طويلة جداً. يرجى تقصيرها إلى 4000 حرف كحد أقصى.")
+
+    # Bound the conversation history so a single request cannot exhaust memory/tokens.
+    history = req.history or []
+    if len(history) > 20:
+        history = history[-20:]
+
     # Collect all images (single or dual: prescription + lab test)
     images = []
     if req.images:
@@ -1601,6 +1741,12 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
 
     if not msg and not images:
         raise HTTPException(status_code=400, detail="رسالة فارغة أو صور غير صالحة")
+
+    if len(images) > 4:
+        raise HTTPException(status_code=400, detail="الحد الأقصى 4 صور في الطلب الواحد.")
+    # ~12 MB of base64 payload (roughly 9 MB of image data).
+    if sum(len(image) for image in images) > 12 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="حجم الصور كبير جداً. يرجى ضغط الصور والمحاولة مرة أخرى.")
 
     # Detect dual prescription + lab test correlation mode
     is_dual_audit = (req.prescription_image and req.lab_image) or len(images) >= 2
@@ -1697,7 +1843,7 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
         max_tokens=max_token_budget,
         request=request,
         images=images,
-        history=req.history
+        history=history
     )
 
     if not reply:
@@ -1728,23 +1874,59 @@ def get_public_dir():
 
 PUBLIC_DIR = get_public_dir()
 
+_BLOCKED_STATIC_EXTENSIONS = {
+    ".db", ".sqlite", ".sqlite3", ".py", ".pyc", ".pem", ".key",
+    ".crt", ".log", ".bak", ".env", ".ini", ".cfg",
+}
+
+
+def _safe_public_path(file_path: str):
+    """Resolve a path inside PUBLIC_DIR or return None (blocks traversal)."""
+    public_root = os.path.abspath(PUBLIC_DIR)
+    full_path = os.path.abspath(os.path.join(public_root, file_path))
+    try:
+        if os.path.commonpath([full_path, public_root]) != public_root:
+            return None
+    except ValueError:
+        return None
+
+    if os.path.basename(full_path).startswith("."):
+        return None
+    if os.path.splitext(full_path)[1].lower() in _BLOCKED_STATIC_EXTENSIONS:
+        return None
+    return full_path
+
+
 @app.get("/")
 def serve_index():
-    index_path = os.path.join(PUBLIC_DIR, "index.html")
-    if not os.path.exists(index_path):
+    index_path = _safe_public_path("index.html")
+    if not index_path or not os.path.exists(index_path):
         return PlainTextResponse("Index file not found.", status_code=404)
     return FileResponse(index_path)
 
+
 @app.get("/{file_path:path}")
 def serve_static(file_path: str):
+    # Unknown API routes must 404 instead of silently returning the HTML shell.
+    if file_path == "api" or file_path.startswith("api/"):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+
+    # Blocked files (databases, secrets) and traversal attempts are hard 404s.
+    full_path = _safe_public_path(file_path)
+    if full_path is None:
+        return PlainTextResponse("Not found.", status_code=404)
+
     # Support extensionless HTML serving
-    if not file_path.endswith('.html') and '.' not in file_path:
-        html_path = os.path.abspath(os.path.join(PUBLIC_DIR, f"{file_path}.html"))
-        if os.path.isfile(html_path) and os.path.commonpath([html_path, PUBLIC_DIR]) == os.path.abspath(PUBLIC_DIR):
+    if not file_path.endswith(".html") and "." not in file_path:
+        html_path = _safe_public_path(f"{file_path}.html")
+        if html_path and os.path.isfile(html_path):
             return FileResponse(html_path)
 
-    full_path = os.path.abspath(os.path.join(PUBLIC_DIR, file_path))
-    if os.path.isfile(full_path) and os.path.commonpath([full_path, PUBLIC_DIR]) == os.path.abspath(PUBLIC_DIR):
+    if os.path.isfile(full_path):
         return FileResponse(full_path)
-    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+
+    index_path = _safe_public_path("index.html")
+    if index_path and os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return PlainTextResponse("Not found.", status_code=404)
 # Trigger redeploy

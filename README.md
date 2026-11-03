@@ -27,19 +27,17 @@
 
 ```
 neo-drug/
-├── index.html                          # التطبيق الرئيسي
-├── index-backup.html                   # نسخة احتياطية
-├── performance-optimizations.js        # 🚀 تحسينات الأداء
-├── drugs_data.js                       # قاعدة البيانات (2.3 MB)
-├── drugs_db.json                       # البيانات بصيغة JSON (3.4 MB)
-├── egyptian_drugs_complete.csv         # البيانات الخام
-├── capacitor.config.json               # إعدادات Capacitor
-├── package.json                        # اعتمادات Node.js
-├── manifest.json                       # PWA Manifest
-├── ios/                                # مشروع iOS
-├── www/                                # ملفات الويب
-├── PERFORMANCE-IMPROVEMENTS.md         # 📊 توثيق التحسينات
-└── BUGS-AND-FIXES.md                   # 🔧 المشاكل والحلول
+├── backend/
+│   ├── app/                            # FastAPI application (auth, AI, admin)
+│   ├── public/                         # ✅ الواجهة الوحيدة (HTML/JS/CSS + SQLite)
+│   └── scripts/migrate_to_postgres.py  # ترحيل البيانات إلى Postgres
+├── archive/                            # نسخ قديمة للرجوع فقط (www, صفحات تجريبية)
+├── capacitor.config.json               # إعدادات Capacitor (webDir = backend/public)
+├── package.json                        # أوامر Capacitor والتشغيل
+├── .env.example                        # جميع متغيرات البيئة المطلوبة
+├── desktop_app.py                      # غلاف سطح المكتب (Vercel + جسر محلي)
+├── standalone_app.py                   # نسخة سطح مكتب مستقلة (FastAPI محلي)
+└── ios/                                # مشروع iOS
 ```
 
 ---
@@ -253,6 +251,60 @@ console.timeEnd('test');
 - **الاسم**: Mahmoud
 - **المشروع**: Neo Drug
 - **الإصدار**: 1.0
+
+---
+
+## 🔐 النشر والتأمين (Deployment & security)
+
+### المتغيرات المطلوبة في الإنتاج
+
+انسخ `.env.example` إلى `.env` محلياً، واضبط نفس المتغيرات في Vercel:
+
+| المتغير | الغرض |
+|---------|-------|
+| `JWT_SECRET` | توقيع رموز الدخول. بدون قيمة عشوائية طويلة تُفقد الجلسات عند كل cold start. |
+| `ADMIN_KEY` | مفتاح لوحة الإدارة. بدون قيمة، يتم تعطيل الدخول بالمفتاح نهائياً. |
+| `DATABASE_URL` | Postgres/Neon/Supabase. بدونه على Vercel تُفقد الحسابات والاستخدامات والأكواد عند كل cold start. |
+| `ALLOWED_ORIGINS` | النطاقات المسموح لها باستدعاء الـ API (مفصولة بفواصل). |
+| `GOOGLE_CLIENT_ID` | معرف عميل Google OAuth المقبول (مفصول بفواصل عند تعدد العملاء). |
+| `GROQ_API_KEY` / `GEMINI_API_KEY` / `OPENROUTER_API_KEY` | مزودو الذكاء الاصطناعي (واحد على الأقل). |
+
+### التحقق من الجاهزية
+
+```bash
+curl https://YOUR_DOMAIN/api/health
+```
+
+يجب أن يعرض `"persistent_storage": true` و`"database": "postgresql"` في الإنتاج.
+
+### ترحيل البيانات إلى Postgres
+
+```bash
+DATABASE_URL="postgresql://user:pass@host/db" \
+  python3 backend/scripts/migrate_to_postgres.py \
+  --source backend/public/drugs_database.db
+```
+
+أضف `--dry-run` لمعاينة الأعداد قبل الكتابة.
+
+### هيكل الواجهة الواحد
+
+- الواجهة الوحيدة هي `backend/public` (تخدمها Vercel عبر `api/index.py`).
+- `www/` القديم وملفات HTML التجريبية نُقلت إلى `archive/` للرجوع فقط.
+- `capacitor.config.json` يشير إلى `backend/public`، لذا `npx cap sync` ينسخ نفس الواجهة للتطبيقات الأصلية.
+
+### ملاحظات أمنية
+
+- `/api/auth/google` يتحقق من رمز Google عبر خوادم Google (وليس فك التشفير محلياً).
+- جسر سطح المكتب يستخدم `state` عشوائياً لمرة واحدة، ويعمل على `127.0.0.1` فقط.
+- أكواد PRO تُقرأ من قاعدة البيانات فقط، ولا توجد أكواد افتراضية عامة داخل الكود.
+- استبدال رمز سحابي برمز محلي يتم عبر `/api/auth/exchange` بعد التحقق من السحابة.
+- على سطح المكتب (بدون `JWT_SECRET`/`ADMIN_KEY`)، تُولَّد أسرار محلية مرة واحدة وتُحفظ في مجلد البيانات:
+  - macOS: `~/Library/Application Support/NeoDrug/`
+  - Windows: `%APPDATA%\NeoDrug\`
+  - Linux: `~/.local/share/neodrug/`
+  - النسخة المحمولة: `data/` بجانب الملف التنفيذي.
+  الملفات هي `.jwt_secret` و`.admin_key` (صلاحيات `600`). لا تشاركها ولا ترفعها إلى Git.
 
 ---
 
