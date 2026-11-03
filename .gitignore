@@ -4,3 +4,14 @@ scratch/
 build/
 *.log
 .env
+.env.local
+.env.*.local
+
+# Locally generated secrets (desktop/portable builds)
+.jwt_secret
+.admin_key
+*.pem
+*.key
+
+# Portable desktop data folder
+data/

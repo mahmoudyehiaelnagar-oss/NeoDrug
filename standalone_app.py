@@ -11,9 +11,11 @@ Neo Drug — Standalone Desktop Application (macOS & Windows)
 
 import sys
 import os
+import secrets
 import socket
 import threading
 import time
+import urllib.parse
 import uvicorn
 import webview
 
@@ -37,10 +39,11 @@ except Exception:
     pass
 
 # ضبط متغيرات البيئة الأساسية
-os.environ["ADMIN_KEY"] = os.environ.get("ADMIN_KEY", "216180")
+os.environ["NEO_DESKTOP_APP"] = "1"
+# ADMIN_KEY: on desktop a random key is generated and stored next to the local DB.
+# Set ADMIN_KEY explicitly to override it.
 # API_KEY should be set via environment variable (GROQ_API_KEY or GEMINI_API_KEY or OPENROUTER_API_KEY)
 os.environ["API_KEY"] = os.environ.get("API_KEY", os.environ.get("GROQ_API_KEY", ""))
-os.environ["NEO_DESKTOP_APP"] = "1"
 
 def find_free_port():
     """البحث عن منفذ محلي متاح لتشغيل السيرفر"""
@@ -87,12 +90,22 @@ def main():
     print("✓ تم بدء السيرفر المحلي وقاعدة البيانات بنجاح.")
 
     class DesktopApi:
+        def __init__(self, bridge_base: str):
+            self.bridge_base = bridge_base
+            self.bridge_state = secrets.token_urlsafe(24)
+
+        def get_bridge_config(self):
+            return {"state": self.bridge_state, "base": self.bridge_base}
+
         def open_external(self, url):
             import webbrowser
+            parsed = urllib.parse.urlparse(str(url))
+            if parsed.scheme not in ("http", "https"):
+                return False
             webbrowser.open(str(url))
             return True
 
-    api = DesktopApi()
+    api = DesktopApi(app_url)
 
     # إنشاء نافذة التطبيق المستقل
     window = webview.create_window(

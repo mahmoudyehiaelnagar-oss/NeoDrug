@@ -59,6 +59,9 @@ class GoogleAuthRequest(BaseModel):
     name: Optional[str] = None
     google_id: Optional[str] = None
 
+class ExchangeTokenRequest(BaseModel):
+    token: str
+
 class UserProfileResponse(BaseModel):
     id: int
     email: str
@@ -70,7 +73,7 @@ class UserProfileResponse(BaseModel):
     ai_queries_used: int = 0
     ai_queries_limit: int = 5
     single_ocr_used: int = 0
-    single_ocr_limit: int = 1
+    single_ocr_limit: int = 2
     dual_ocr_used: int = 0
     dual_ocr_limit: int = 0
     is_unlimited: bool = False
