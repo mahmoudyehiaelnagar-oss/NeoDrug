@@ -46,7 +46,7 @@ app.add_middleware(
     allow_origins=_ALLOWED_ORIGINS or ["*"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "x-api-key", "x-gemini-key", "x-groq-key", "x-admin-key"],
+    allow_headers=["Authorization", "Content-Type", "x-api-key", "x-gemini-key", "x-admin-key"],
 )
 
 
@@ -168,7 +168,9 @@ def get_drugs(
     }
 
 # API keys are loaded from environment variables and .env files
-# Set GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY in your deployment environment
+# Set GEMINI_API_KEY in your deployment environment (Vercel, .env, etc.).
+# This backend is Gemini-only by design: Groq/OpenRouter paths were removed
+# because their vision models returned 404s and are no longer maintained here.
 
 
 def _env_models(var_name: str, defaults: list) -> list:
@@ -180,94 +182,12 @@ def _env_models(var_name: str, defaults: list) -> list:
     return parsed or defaults
 
 
-# Model chains are updated for 2026. The old Groq Llama-3.2 vision previews and
-# Gemini 1.5 models were retired by their providers and now return 404/410.
-GROQ_VISION_MODELS = [
-    "meta-llama/llama-4-scout-17b-16e-instruct",
-    "meta-llama/llama-4-maverick-17b-128e-instruct",
-]
-GROQ_TEXT_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
-]
+# Gemini-only model chain. Env override: GEMINI_MODELS="m1,m2".
 GEMINI_MODELS = [
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
     "gemini-2.0-flash",
 ]
-OPENROUTER_VISION_MODELS = [
-    "google/gemini-2.5-flash",
-    "google/gemini-2.0-flash-001",
-    "qwen/qwen-2.5-vl-72b-instruct",
-]
-OPENROUTER_TEXT_MODELS = [
-    "google/gemini-2.5-flash",
-    "google/gemini-2.0-flash-001",
-    "meta-llama/llama-3.3-70b-instruct",
-]
-
-
-def _call_groq(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int) -> str:
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-
-    if history:
-        for h in history:
-            r = "assistant" if h.get("role") in ("model", "assistant") else "user"
-            c = h.get("content", "")
-            if isinstance(c, list):
-                txt_parts = [p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text"]
-                c = " ".join(txt_parts).strip()
-            if c:
-                messages.append({"role": r, "content": str(c)})
-
-    if all_images:
-        user_content = [{"type": "text", "text": prompt}]
-        for img in all_images:
-            clean_b64 = img if img.startswith("data:") else f"data:image/jpeg;base64,{img}"
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": clean_b64}
-            })
-        messages.append({"role": "user", "content": user_content})
-        models_to_try = _env_models("GROQ_VISION_MODELS", GROQ_VISION_MODELS)
-    else:
-        messages.append({"role": "user", "content": prompt})
-        models_to_try = _env_models("GROQ_TEXT_MODELS", GROQ_TEXT_MODELS)
-
-    for m in models_to_try:
-        payload = json.dumps({
-            "model": m,
-            "messages": messages,
-            "max_tokens": max_tokens
-        }).encode('utf-8')
-
-        req = urllib.request.Request(url, data=payload, headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0"
-        })
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                res_data = json.loads(resp.read().decode('utf-8'))
-                if res_data and 'choices' in res_data and len(res_data['choices']) > 0:
-                    content = res_data['choices'][0]['message'].get('content', '')
-                    if content and content.strip():
-                        return content.strip()
-        except Exception as e:
-            err_detail = ""
-            if hasattr(e, 'read'):
-                try:
-                    err_detail = e.read().decode('utf-8')
-                except Exception:
-                    pass
-            print(f"Groq call error ({m}): {e} {err_detail}")
-            continue
-    return None
 
 
 def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int = 1800) -> str:
@@ -363,71 +283,6 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
     return None
 
 
-def _call_openrouter(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int) -> str:
-    # Always talk to the official OpenRouter endpoint. Third-party "router" proxies
-    # would receive the user's API key in plaintext.
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-
-    if history:
-        for h in history:
-            r = "assistant" if h.get("role") in ("model", "assistant") else "user"
-            c = h.get("content", "")
-            if isinstance(c, list):
-                txt_parts = [p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text"]
-                c = " ".join(txt_parts).strip()
-            if c:
-                messages.append({"role": r, "content": str(c)})
-
-    if all_images:
-        user_content = [{"type": "text", "text": prompt}]
-        for img in all_images:
-            clean_b64 = img if img.startswith("data:") else f"data:image/jpeg;base64,{img}"
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": clean_b64}
-            })
-        messages.append({"role": "user", "content": user_content})
-        models_to_try = _env_models("OPENROUTER_VISION_MODELS", OPENROUTER_VISION_MODELS)
-    else:
-        messages.append({"role": "user", "content": prompt})
-        models_to_try = _env_models("OPENROUTER_TEXT_MODELS", OPENROUTER_TEXT_MODELS)
-
-    for m in models_to_try:
-        payload = json.dumps({
-            "model": m,
-            "messages": messages,
-            "max_tokens": max_tokens
-        }).encode('utf-8')
-
-        req = urllib.request.Request(url, data=payload, headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://neo-drug.vercel.app",
-            "X-Title": "Neo Drug",
-            "User-Agent": "Mozilla/5.0"
-        })
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                res_data = json.loads(resp.read().decode('utf-8'))
-                if res_data and 'choices' in res_data and len(res_data['choices']) > 0:
-                    content = res_data['choices'][0]['message'].get('content', '')
-                    if content and content.strip():
-                        return content.strip()
-        except Exception as e:
-            err_detail = ""
-            if hasattr(e, 'read'):
-                try:
-                    err_detail = e.read().decode('utf-8')
-                except Exception:
-                    pass
-            print(f"Router call error ({m}): {e} {err_detail}")
-            continue
-    return None
-
-
 def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, request: Request = None, image_base64: str = None, images: list = None, history: list = None) -> str:
     all_images = []
     if images:
@@ -437,47 +292,31 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
     if image_base64 and str(image_base64).strip() and image_base64 not in all_images:
         all_images.append(str(image_base64).strip())
 
-    has_images = bool(all_images)
-
-    # 1. Gather all available API keys
-    groq_keys = []
+    # Gemini-only: collect every available Gemini key.
     gemini_keys = []
-    openrouter_keys = []
 
+    # 1. Browser-supplied key (header) — accepted only if it looks like a
+    #    Google AI Studio key, so foreign provider keys are never forwarded.
     if request:
-        ck = request.headers.get("x-api-key") or request.headers.get("x-gemini-key") or request.headers.get("x-groq-key")
+        ck = request.headers.get("x-gemini-key") or request.headers.get("x-api-key")
         if ck and ck.strip():
             ck = ck.strip()
-            if ck.startswith("gsk_"):
-                groq_keys.append(ck)
-            elif ck.startswith(("AIzaSy", "AQ")):
+            if ck.startswith(("AIzaSy", "AQ")):
                 gemini_keys.append(ck)
-            elif ck.startswith("sk-or-"):
-                openrouter_keys.append(ck)
 
-    env_groq = os.getenv("GROQ_API_KEY")
-    if env_groq and env_groq.strip():
-        groq_keys.append(env_groq.strip())
-
+    # 2. Deployment environment (Vercel etc.)
     env_gemini = os.getenv("GEMINI_API_KEY")
     if env_gemini and env_gemini.strip():
-        gemini_keys.append(env_gemini.strip())
+        gemini_keys.extend(k.strip() for k in env_gemini.split(",") if k.strip())
 
-    env_or = os.getenv("OPENROUTER_API_KEY")
-    if env_or and env_or.strip():
-        openrouter_keys.append(env_or.strip())
-
+    # 3. Generic API_KEY accepted only when it is a Gemini key
     env_api = os.getenv("API_KEY")
     if env_api and env_api.strip():
         k = env_api.strip()
-        if k.startswith("gsk_"):
-            groq_keys.append(k)
-        elif k.startswith(("AIzaSy", "AQ")):
+        if k.startswith(("AIzaSy", "AQ")):
             gemini_keys.append(k)
-        elif k.startswith("sk-or-"):
-            openrouter_keys.append(k)
 
-    # Read from local .env files if present
+    # 4. Local .env files (development convenience)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.join(os.path.dirname(current_dir), "scripts", ".env"),
@@ -491,83 +330,24 @@ def call_llm(prompt: str, system_prompt: str = "", max_tokens: int = 1800, reque
                 with open(c, "r", encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
-                        if line.startswith("GROQ_API_KEY="):
-                            groq_keys.append(line.split("=", 1)[1].strip())
-                        elif line.startswith("GEMINI_API_KEY="):
+                        if line.startswith("GEMINI_API_KEY="):
                             gemini_keys.append(line.split("=", 1)[1].strip())
-                        elif line.startswith("OPENROUTER_API_KEY="):
-                            openrouter_keys.append(line.split("=", 1)[1].strip())
                         elif line.startswith("API_KEY="):
                             val = line.split("=", 1)[1].strip()
-                            if val.startswith("gsk_"):
-                                groq_keys.append(val)
-                            elif val.startswith(("AIzaSy", "AQ")):
+                            if val.startswith(("AIzaSy", "AQ")):
                                 gemini_keys.append(val)
-                            elif val.startswith("sk-or-"):
-                                openrouter_keys.append(val)
             except Exception:
                 pass
 
-    # Append keys from environment variables (set in deployment: Vercel, .env, etc.)
-    env_groq = os.getenv("GROQ_API_KEY")
-    if env_groq and env_groq.strip():
-        groq_keys.append(env_groq.strip())
-
-    env_gemini = os.getenv("GEMINI_API_KEY")
-    if env_gemini and env_gemini.strip():
-        gemini_keys.extend([k.strip() for k in env_gemini.split(",") if k.strip()])
-
-    env_openrouter = os.getenv("OPENROUTER_API_KEY")
-    if env_openrouter and env_openrouter.strip():
-        openrouter_keys.extend([k.strip() for k in env_openrouter.split(",") if k.strip()])
-
     # Deduplicate while preserving priority order
-    def dedupe(lst):
-        seen = set()
-        out = []
-        for x in lst:
-            if x and x not in seen:
-                seen.add(x)
-                out.append(x)
-        return out
+    seen = set()
+    gemini_keys = [k for k in gemini_keys if k and not (k in seen or seen.add(k))]
 
-    groq_keys = dedupe(groq_keys)
-    gemini_keys = dedupe(gemini_keys)
-    openrouter_keys = dedupe(openrouter_keys)
-
-    # 2. Resilient Execution Waterfall
-    # For images: Google Gemini (fastest & clinical precision) -> OpenRouter Vision -> Groq Vision
-    # For text: Groq -> Google Gemini -> OpenRouter
-    if has_images:
-        for k in gemini_keys:
-            res = _call_gemini(k, prompt, system_prompt, all_images, history, max_tokens)
-            if res:
-                return res
-
-        for k in openrouter_keys:
-            res = _call_openrouter(k, prompt, system_prompt, all_images, history, max_tokens)
-            if res:
-                return res
-
-        for k in groq_keys:
-            res = _call_groq(k, prompt, system_prompt, all_images, history, max_tokens)
-            if res:
-                return res
-    else:
-        for k in groq_keys:
-            res = _call_groq(k, prompt, system_prompt, all_images, history, max_tokens)
-            if res:
-                return res
-
-        for k in gemini_keys:
-            res = _call_gemini(k, prompt, system_prompt, all_images, history, max_tokens)
-            if res:
-                return res
-
-        for k in openrouter_keys:
-            res = _call_openrouter(k, prompt, system_prompt, all_images, history, max_tokens)
-            if res:
-                return res
+    # Single Gemini waterfall from here on.
+    for k in gemini_keys:
+        res = _call_gemini(k, prompt, system_prompt, all_images, history, max_tokens)
+        if res:
+            return res
 
     return None
 

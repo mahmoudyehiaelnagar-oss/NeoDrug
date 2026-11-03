@@ -170,8 +170,8 @@ npm run cap:open:ios
 ## 🤖 الذكاء الاصطناعي
 
 ### المزود
-- **OpenRouter API** لتشغيل نماذج اللغة الكبيرة
-- يدعم Claude, GPT-4, وغيرها
+- **Google Gemini API** لتشغيل النماذج (Gemini-only)
+- يدعم القراءة والتحليل النصي والصوري معاً
 
 ### الميزات
 1. **قراءة الروشتات**: Vision API
@@ -267,7 +267,7 @@ console.timeEnd('test');
 | `DATABASE_URL` | Postgres/Neon/Supabase. بدونه على Vercel تُفقد الحسابات والاستخدامات والأكواد عند كل cold start. |
 | `ALLOWED_ORIGINS` | النطاقات المسموح لها باستدعاء الـ API (مفصولة بفواصل). |
 | `GOOGLE_CLIENT_ID` | معرف عميل Google OAuth المقبول (مفصول بفواصل عند تعدد العملاء). |
-| `GROQ_API_KEY` / `GEMINI_API_KEY` / `OPENROUTER_API_KEY` | مزودو الذكاء الاصطناعي (واحد على الأقل). |
+| `GEMINI_API_KEY` | مزود الذكاء الاصطناعي الوحيد المدعوم (من aistudio.google.com/apikey). |
 
 ### التحقق من الجاهزية
 
