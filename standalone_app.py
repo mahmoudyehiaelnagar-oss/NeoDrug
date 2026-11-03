@@ -6,7 +6,7 @@ Neo Drug — Standalone Desktop Application (macOS & Windows)
 - خادم محلي وسريع جداً (FastAPI + Uvicorn)
 - قاعدة بيانات محلية ودائمة تماماً على القرص (لا تمسح أبداً)
 - واجهة أصلية خفيفة (Native WebView)
-- متصل بالإنترنت فقط لخدمات الذكاء الاصطناعي (Groq / Gemini)
+- متصل بالإنترنت فقط لخدمة Gemini الذكاء الاصطناعي
 """
 
 import sys
@@ -42,8 +42,8 @@ except Exception:
 os.environ["NEO_DESKTOP_APP"] = "1"
 # ADMIN_KEY: on desktop a random key is generated and stored next to the local DB.
 # Set ADMIN_KEY explicitly to override it.
-# API_KEY should be set via environment variable (GROQ_API_KEY or GEMINI_API_KEY or OPENROUTER_API_KEY)
-os.environ["API_KEY"] = os.environ.get("API_KEY", os.environ.get("GROQ_API_KEY", ""))
+# API_KEY should be set via environment variable (GEMINI_API_KEY)
+os.environ["API_KEY"] = os.environ.get("API_KEY", os.environ.get("GEMINI_API_KEY", ""))
 
 def find_free_port():
     """البحث عن منفذ محلي متاح لتشغيل السيرفر"""

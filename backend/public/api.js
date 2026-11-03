@@ -50,12 +50,22 @@ window.api = {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    const apiKey = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GROQ_API_KEY') || "";
+    const apiKey = localStorage.getItem('GEMINI_API_KEY') || "";
     if (apiKey) {
-      headers["x-api-key"] = apiKey;
       headers["x-gemini-key"] = apiKey;
+      headers["x-api-key"] = apiKey;
     }
     return headers;
+  },
+
+  // One-time cleanup: remove legacy third-party provider keys from the browser.
+  cleanupLegacyKeys() {
+    try {
+      ["GROQ_API_KEY", "GROQ_KEY", "OPENROUTER_API_KEY", "OPENROUTER_KEY", "API_KEY", "GEMINI_KEY"].forEach(k => {
+        if (k === "GEMINI_API_KEY") return;
+        localStorage.removeItem(k);
+      });
+    } catch (e) { /* ignore */ }
   },
 
   async register(email, password, username = "") {
@@ -331,66 +341,53 @@ window.api = {
         }
       }
     } catch (e) {
-      console.warn("Backend chat failed, falling back to direct Groq inference:", e);
+      console.warn("Backend chat failed, falling back to direct Gemini inference:", e);
     }
 
-    // 2. Direct high-speed Groq API fallback (works only if user provides a valid key)
-    const groqKey = (localStorage.getItem("GROQ_API_KEY") || "").trim();
-    if (groqKey) {
+    // 2. Direct Gemini REST fallback (works only if the user provides their own key)
+    const geminiKey = (localStorage.getItem("GEMINI_API_KEY") || "").trim();
+    if (geminiKey) {
       try {
         const systemPrompt = isDual
           ? "أنت استشاري الصيدلة الإكلينيكية وتعديل الجرعات الدوائية لتطبيق Neo Drug. قم بفحص صورة الروشتة وصورة التحليل معاً: 1- استخراج الأدوية والجرعات من الروشتة. 2- قراءة وتفسير نتائج التحاليل المخبرية. 3- تقييم دقة الجرعات والتنبيه الصريح في حال وجود خطأ في الجرعة المكتوبة بناءً على وظائف الكلى أو الكبد أو السكر أو السيولة مع تحديد الجرعة الصحيحة المعدلة (Dose Adjustment) والبدائل الآمنة للمريض."
           : "أنت المساعد الطبي والذكاء الاصطناعي الإكلينيكي المعتمد لتطبيق Neo Drug (دليل الأدوية المصري). قدم استشارات صيدلانية دقيقة وموثوقة، واشرح دواعي الاستعمال والجرعات والبدائل المتاحة في السوق المصري، ونبه دائماً على ضرورة استشارة الطبيب في الحالات الطارئة.";
 
-        const messages = [{ role: "system", content: systemPrompt }];
-
+        const contents = [];
         if (history && history.length > 0) {
           history.slice(-6).forEach(h => {
-            messages.push({
-              role: h.role,
-              content: typeof h.content === "string" ? h.content : JSON.stringify(h.content)
-            });
+            const text = typeof h.content === "string" ? h.content : JSON.stringify(h.content);
+            if (text) {
+              contents.push({ role: h.role === "model" || h.role === "assistant" ? "model" : "user", parts: [{ text }] });
+            }
           });
         }
 
-        if (imagesList.length > 0) {
-          const userContent = [
-            { type: "text", text: message || (isDual ? "يرجى مطابقة الروشتة مع التحليل وتدقيق الجرعات وتعديل أي جرعة خاطئة" : "يرجى قراءة هذه الصورة واستخراج الأدوية والجرعات") }
-          ];
-          imagesList.forEach(img => {
-            const cleanB64 = img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}`;
-            userContent.push({
-              type: "image_url",
-              image_url: { url: cleanB64 }
-            });
-          });
-          messages.push({ role: "user", content: userContent });
-        } else {
-          messages.push({ role: "user", content: message });
-        }
+        const parts = [{ text: message || (isDual ? "يرجى مطابقة الروشتة مع التحليل وتدقيق الجرعات وتعديل أي جرعة خاطئة" : "يرجى قراءة هذه الصورة واستخراج الأدوية والجرعات") }];
+        imagesList.forEach(img => {
+          parts.push({ inline_data: { mime_type: "image/jpeg", data: img.startsWith("data:") ? img.split(",")[1] : img } });
+        });
+        contents.push({ role: "user", parts });
 
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const geminiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(geminiKey), {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${groqKey}`
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: imagesList.length > 0 ? "meta-llama/llama-4-scout-17b-16e-instruct" : "llama-3.3-70b-versatile",
-            messages: messages,
-            max_tokens: isDual ? 2000 : 1500
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: contents,
+            generationConfig: { maxOutputTokens: isDual ? 2000 : 1500, temperature: 0.4 }
           })
         });
 
-        if (groqRes.ok) {
-          const groqData = await groqRes.json();
-          const reply = groqData.choices?.[0]?.message?.content;
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const cand = geminiData.candidates?.[0]?.content?.parts;
+          const reply = cand ? cand.map(p => p.text || "").join("").trim() : "";
           if (reply) {
             return { text: reply, isTruncated: false };
           }
         }
       } catch (err) {
-        console.warn("Direct Groq API failed:", err);
+        console.warn("Direct Gemini API failed:", err);
       }
     }
 
@@ -403,3 +400,8 @@ window.api = {
     };
   }
 };
+
+// Run the legacy-key cleanup once on script load.
+if (typeof window.api.cleanupLegacyKeys === "function") {
+  window.api.cleanupLegacyKeys();
+}
