@@ -1,0 +1,21 @@
+# Never upload these to Vercel (100 MB upload limit / not needed at runtime)
+.git
+.claude
+scratch
+node_modules
+__pycache__
+*.pyc
+build
+data
+archive
+ios
+ios-native-template
+ios-wrapper
+*.apk
+*.deb
+*.log
+egyptian_drugs_complete.csv
+drugs_db.json
+.env
+.env.*
+!.env.example
