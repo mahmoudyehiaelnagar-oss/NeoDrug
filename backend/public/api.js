@@ -395,12 +395,19 @@ window.api = {
 
         const contents = [];
         if (history && history.length > 0) {
-          history.slice(-6).forEach(h => {
+          // Full conversation memory: send from the first message to the latest,
+          // capped only by characters when the context window would overflow.
+          let totalChars = 0;
+          const budgeted = [];
+          for (let i = history.length - 1; i >= 0; i--) {
+            const h = history[i];
             const text = typeof h.content === "string" ? h.content : JSON.stringify(h.content);
-            if (text) {
-              contents.push({ role: h.role === "model" || h.role === "assistant" ? "model" : "user", parts: [{ text }] });
-            }
-          });
+            if (!text) continue;
+            if (budgeted.length > 0 && totalChars + text.length > 100000) break;
+            budgeted.push({ role: h.role === "model" || h.role === "assistant" ? "model" : "user", parts: [{ text }] });
+            totalChars += text.length + 32;
+          }
+          budgeted.reverse().forEach(item => contents.push(item));
         }
 
         const parts = [{ text: message || (isDual ? "يرجى مطابقة الروشتة مع التحليل وتدقيق الجرعات وتعديل أي جرعة خاطئة" : "يرجى قراءة هذه الصورة واستخراج الأدوية والجرعات") }];

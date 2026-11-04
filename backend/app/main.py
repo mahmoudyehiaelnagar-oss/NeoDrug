@@ -1547,10 +1547,25 @@ def chat_endpoint(req: schemas.ChatRequest, request: Request, db: Session = Depe
     if len(msg) > 4000:
         raise HTTPException(status_code=400, detail="الرسالة طويلة جداً. يرجى تقصيرها إلى 4000 حرف كحد أقصى.")
 
-    # Bound the conversation history so a single request cannot exhaust memory/tokens.
-    history = req.history or []
-    if len(history) > 20:
-        history = history[-20:]
+    # Keep the full conversation (first message to last). Only cap by characters
+    # to protect the Gemini context window and serverless memory.
+    history = []
+    if req.history:
+        total_chars = 0
+        HISTORY_CHAR_BUDGET = 100_000
+        for item in reversed(req.history):
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content", "")
+            if isinstance(content, list):
+                content_len = sum(len(str(p.get("text", ""))) for p in content if isinstance(p, dict))
+            else:
+                content_len = len(str(content))
+            if history and total_chars + content_len > HISTORY_CHAR_BUDGET:
+                break
+            history.append(item)
+            total_chars += content_len + 32
+        history.reverse()
 
     # Collect all images (single or dual: prescription + lab test)
     images = []
