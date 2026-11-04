@@ -185,9 +185,45 @@ def _env_models(var_name: str, defaults: list) -> list:
 # Gemini-only model chain. Env override: GEMINI_MODELS="m1,m2".
 GEMINI_MODELS = [
     "gemini-3.5-flash",
+    "gemini-3.6-flash",
     "gemini-3.8-flash",
-    "gemini-3.1-flash-lite",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
 ]
+
+
+def _shrink_image_b64(b64_data: str, mime_type: str, max_side: int = 1200, quality: int = 80):
+    """
+    Downscale an image before sending it to Gemini.
+
+    Phone photos are several megabytes; large payloads make vision requests slow
+    enough to hit the serverless timeout. Pillow is optional: if it is missing we
+    simply send the original bytes.
+    """
+    try:
+        import base64 as _b64
+        import io
+        from PIL import Image  # type: ignore
+    except Exception:
+        return mime_type, b64_data
+
+    try:
+        raw = _b64.b64decode(b64_data, validate=False)
+        img = Image.open(io.BytesIO(raw))
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        width, height = img.size
+        if max(width, height) > max_side:
+            if width > height:
+                new_size = (max_side, max(1, round(height * max_side / width)))
+            else:
+                new_size = (max(1, round(width * max_side / height)), max_side)
+            img = img.resize(new_size, Image.LANCZOS)
+        out = io.BytesIO()
+        img.save(out, format="JPEG", quality=quality, optimize=True)
+        return "image/jpeg", _b64.b64encode(out.getvalue()).decode("ascii")
+    except Exception:
+        return mime_type, b64_data
 
 
 def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list, history: list, max_tokens: int = 1800) -> str:
@@ -224,6 +260,7 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
             if mime_match:
                 mime_type = mime_match.group(1)
             clean_b64 = re.sub(r'^data:image\/[a-zA-Z0-9\.\+_\-]+;base64,', '', raw_img)
+            mime_type, clean_b64 = _shrink_image_b64(clean_b64, mime_type)
             current_parts.append({
                 "inlineData": {
                     "mimeType": mime_type,
@@ -255,7 +292,16 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
 
     payload = json.dumps(req_dict).encode('utf-8')
     models_to_try = _env_models("GEMINI_MODELS", GEMINI_MODELS)
+
+    # Global budget so a burst of provider 503s never keeps the function running
+    # past the platform limit: ~95s for vision, ~40s for text.
+    deadline = time.time() + (95 if all_images else 40)
+
     for m in models_to_try:
+        remaining = deadline - time.time()
+        if remaining < 5:
+            break
+        per_call_timeout = min(45 if all_images else 20, max(5, remaining))
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
         req = urllib.request.Request(url, data=payload, headers={
             "Content-Type": "application/json",
@@ -263,7 +309,7 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
             "User-Agent": "Mozilla/5.0"
         })
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=per_call_timeout) as resp:
                 res_data = json.loads(resp.read().decode('utf-8'))
                 candidates = res_data.get('candidates', [])
                 if candidates and 'content' in candidates[0] and 'parts' in candidates[0]['content']:
