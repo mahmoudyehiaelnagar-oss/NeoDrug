@@ -707,6 +707,16 @@
         return;
       }
 
+      // Make sure the browser session itself is still valid before handing it out;
+      // a token signed before JWT_SECRET was configured would fail inside the app.
+      let me = null;
+      try { me = await window.api.getMe(); } catch (e) { me = null; }
+      if (!me || !me.email) {
+        alert('انتهت صلاحية جلستك على الموقع. سجّل الدخول من جديد ثم اضغط «نقل الحساب للتطبيق» مرة أخرى.');
+        return;
+      }
+      const freshToken = window.api.getAuthToken() || token;
+
       const bridge = await window.api.getBridgeConfig();
       if (!bridge || !bridge.state || !bridge.base) {
         // Running in a normal browser: the desktop app cannot be reached from here,
@@ -714,18 +724,18 @@
         // showing a dead-end message.
         let copied = false;
         try {
-          await navigator.clipboard.writeText(token);
+          await navigator.clipboard.writeText(freshToken);
           copied = true;
         } catch (e) {}
 
         const input = document.getElementById('desktopSyncTokenInput');
         if (input) {
-          input.value = token;
+          input.value = freshToken;
           try { input.select(); } catch (e) {}
         }
 
         if (!copied) {
-          try { window.prompt('انسخ رمز الدخول هذا والصقه داخل تطبيق سطح المكتب:', token); } catch (e) {}
+          try { window.prompt('انسخ رمز الدخول هذا والصقه داخل تطبيق سطح المكتب:', freshToken); } catch (e) {}
         }
 
         alert(
@@ -739,24 +749,46 @@
       }
 
       try {
-        navigator.clipboard.writeText(token);
+        navigator.clipboard.writeText(freshToken);
       } catch (e) {}
-      const bridgeUrl = `${bridge.base}/api/auth/desktop-bridge?token=${encodeURIComponent(token)}&state=${encodeURIComponent(bridge.state)}`;
+      const bridgeUrl = `${bridge.base}/api/auth/desktop-bridge?token=${encodeURIComponent(freshToken)}&state=${encodeURIComponent(bridge.state)}`;
       window.open(bridgeUrl, '_blank');
     },
 
     async applyPastedToken() {
       const input = document.getElementById('desktopSyncTokenInput');
-      const token = (input?.value || '').trim();
-      if (!token) {
+      const raw = (input?.value || '')
+        .trim()
+        .replace(/^Bearer\s+/i, '')
+        .replace(/^["']|["']$/g, '')
+        .trim();
+
+      if (!raw) {
         alert('يرجى لصق رمز الدخول أولاً.');
         return;
       }
-      window.api.setAuthToken(token);
-      currentUser = await window.api.getMe();
-      if (currentUser && currentUser.email && currentUser.email !== 'guest@neodrug.app') {
-        this.updateUserUI(currentUser);
-        const msg = document.getElementById('authMsg');
+      if (raw.split('.').length !== 3) {
+        alert('الرمز غير مكتمل. تأكد من نسخه كاملًا من الموقع (زر «نقل الحساب للتطبيق»).');
+        return;
+      }
+
+      const msg = document.getElementById('authMsg');
+      if (input) input.value = raw;
+
+      window.api.setAuthToken(raw);
+      let me = null;
+      try { me = await window.api.getMe(); } catch (e) { me = null; }
+
+      // Local desktop build: the cloud token must be exchanged for a local one.
+      if (!me && typeof window.api.exchangeCloudToken === 'function') {
+        try {
+          const exchanged = await window.api.exchangeCloudToken(raw);
+          if (exchanged && exchanged.user) me = exchanged.user;
+        } catch (e) {}
+      }
+
+      if (me && me.email && me.email !== 'guest@neodrug.app') {
+        this.updateUserUI(me);
         if (msg) {
           msg.style.display = 'block';
           msg.style.color = '#15803d';
@@ -764,7 +796,11 @@
         }
         setTimeout(() => { this.closeModal(); }, 1000);
       } else {
-        alert('الرمز غير صالح أو تعذر الاتصال بالخادم.');
+        alert(
+          'الرمز غير صالح أو انتهت صلاحيته.\n\n' +
+          'الحل: سجّل الدخول من جديد على الموقع، ثم اضغط «نقل الحساب للتطبيق 🚀» لنسخ رمز جديد، والصقه هنا.\n\n' +
+          'لو استمر الخطأ: افتح نسخة سطح المكتب المحدّثة من المشروع (standalone_app.py) أو سجّل الدخول داخل التطبيق مباشرة بالإيميل والباسورد.'
+        );
       }
     },
 
