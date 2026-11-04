@@ -18,6 +18,24 @@ const IS_LOCAL_DESKTOP =
   ["http:", "https:"].includes(window.location.protocol) &&
   ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
+// Canonical host. Google Sign-In only works on origins registered in Google Cloud
+// Console, so preview *deployment* hosts (neo-drug-<hash>-nemo24.vercel.app) must
+// redirect to the canonical domain. Add ?preview=1 to stay on a preview build.
+const CANONICAL_HOST = "neo-drug.vercel.app";
+(function redirectPreviewHosts() {
+  try {
+    if (window.Capacitor || !/^https?:$/.test(window.location.protocol)) return;
+    const host = window.location.hostname;
+    if (host === CANONICAL_HOST) return;
+    const isPreviewDeployment = /^neo-drug[a-z0-9.-]*\.vercel\.app$/i.test(host);
+    if (!isPreviewDeployment) return;
+    if (new URLSearchParams(window.location.search).get("preview") === "1") return;
+    window.location.replace(
+      "https://" + CANONICAL_HOST + window.location.pathname + window.location.search + window.location.hash
+    );
+  } catch (e) { /* ignore */ }
+})();
+
 window.api = {
   getAuthToken() {
     return localStorage.getItem("NEO_AUTH_TOKEN") || "";
