@@ -6,3 +6,4 @@ python-dotenv
 pg8000
 aiofiles
 google-generativeai
+pillow

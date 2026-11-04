@@ -7,7 +7,8 @@
   ],
   "functions": {
     "api/index.py": {
-      "includeFiles": "{backend/public/**,public/**}"
+      "includeFiles": "{backend/public/**,public/**}",
+      "maxDuration": 300
     }
   }
 }
