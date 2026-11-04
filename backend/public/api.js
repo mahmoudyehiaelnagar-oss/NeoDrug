@@ -196,12 +196,35 @@ window.api = {
 
   async getBridgeConfig() {
     // The desktop shell (pywebview) hands us a one-time state and the local bridge URL.
-    try {
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_bridge_config) {
-        const config = await window.pywebview.api.get_bridge_config();
-        if (config && config.state && config.base) return config;
-      }
-    } catch (e) {}
+    // pywebview injects `window.pywebview` asynchronously, so wait briefly for it
+    // before concluding that we are running in a normal browser.
+    const readConfig = async () => {
+      try {
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.get_bridge_config) {
+          const config = await window.pywebview.api.get_bridge_config();
+          if (config && config.state && config.base) return config;
+        }
+      } catch (e) {}
+      return null;
+    };
+
+    let config = await readConfig();
+    if (config) return config;
+
+    if (!window.pywebview) {
+      config = await new Promise((resolve) => {
+        let settled = false;
+        const finish = async () => {
+          if (settled) return;
+          settled = true;
+          resolve(await readConfig());
+        };
+        window.addEventListener("pywebviewready", finish, { once: true });
+        setTimeout(finish, 3000);
+      });
+      if (config) return config;
+    }
+
     return { state: "", base: "" };
   },
 
