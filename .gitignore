@@ -22,3 +22,7 @@ data/
 # Large binaries kept out of the repo
 *.apk
 *.deb
+
+# macOS build output
+dist/
+*.dmg
