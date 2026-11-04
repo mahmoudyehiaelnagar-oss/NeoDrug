@@ -50,7 +50,7 @@ def main() -> int:
     from sqlalchemy.orm import sessionmaker
 
     from backend.app import models
-    from backend.app.database import _normalize_database_url
+    from backend.app.database import _normalize_database_url, _prepare_postgres_url
 
     source_engine = create_engine(f"sqlite:///{source_path}", future=True)
     SourceSession = sessionmaker(bind=source_engine, autoflush=False, autocommit=False)
@@ -63,9 +63,13 @@ def main() -> int:
             print(f"Redemptions:  {src.query(models.PromoRedemption).count()}")
         return 0
 
+    target_sqlalchemy_url, target_connect_args = _prepare_postgres_url(
+        _normalize_database_url(target_url)
+    )
     target_engine = create_engine(
-        _normalize_database_url(target_url),
+        target_sqlalchemy_url,
         pool_pre_ping=True,
+        connect_args=target_connect_args,
         future=True,
     )
     models.Base.metadata.create_all(bind=target_engine)
