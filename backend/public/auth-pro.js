@@ -368,9 +368,9 @@
                   ✓ حسابك مرتبط ويعمل على أي عدد من أجهزتك (الموبايل، التابلت، والكمبيوتر) في نفس الوقت بحرية تامة.
                 </div>
 
-                <div style="margin-top:10px; padding:10px; background:#eff6ff; border:1px dashed #3b82f6; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:12px; color:#1e40af; font-weight:700;">💻 للربط مع تطبيق سطح المكتب:</span>
-                  <button type="button" class="btn" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer;" onclick="window.authPro.syncWithDesktop()">
+                <div style="margin-top:10px; padding:10px; background:#eff6ff; border:1px dashed #3b82f6; border-radius:10px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                  <span style="font-size:12px; color:#1e40af; font-weight:700;">💻 للربط مع تطبيق سطح المكتب:<br><span style="font-weight:400; font-size:10.5px; color:#3b82f6;">انسخ رمز الدخول والصقه داخل التطبيق.</span></span>
+                  <button type="button" class="btn" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;" onclick="window.authPro.syncWithDesktop()">
                     نقل الحساب للتطبيق 🚀
                   </button>
                 </div>
@@ -709,7 +709,32 @@
 
       const bridge = await window.api.getBridgeConfig();
       if (!bridge || !bridge.state || !bridge.base) {
-        alert('هذه الميزة متاحة فقط داخل تطبيق سطح المكتب.');
+        // Running in a normal browser: the desktop app cannot be reached from here,
+        // so hand the user the token to paste inside the desktop app instead of
+        // showing a dead-end message.
+        let copied = false;
+        try {
+          await navigator.clipboard.writeText(token);
+          copied = true;
+        } catch (e) {}
+
+        const input = document.getElementById('desktopSyncTokenInput');
+        if (input) {
+          input.value = token;
+          try { input.select(); } catch (e) {}
+        }
+
+        if (!copied) {
+          try { window.prompt('انسخ رمز الدخول هذا والصقه داخل تطبيق سطح المكتب:', token); } catch (e) {}
+        }
+
+        alert(
+          (copied ? '✅ تم نسخ رمز الدخول إلى الحافظة.\n\n' : '') +
+          'خطوات الربط مع تطبيق سطح المكتب:\n' +
+          '1) افتح تطبيق Neo Drug على جهاز الكمبيوتر.\n' +
+          '2) من نافذة الحساب اضغط «تسجيل الدخول» ثم الصق الرمز في خانة «الصق رمز الدخول من المتصفح».\n' +
+          '3) اضغط «تفعيل» وسيتم الدخول تلقائيًا بنفس الحساب.'
+        );
         return;
       }
 
