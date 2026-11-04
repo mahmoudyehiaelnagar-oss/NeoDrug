@@ -7,7 +7,7 @@
   ],
   "functions": {
     "api/index.py": {
-      "includeFiles": "public/**"
+      "includeFiles": "{backend/public/**,public/**}"
     }
   }
 }

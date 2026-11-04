@@ -16,3 +16,9 @@ build/
 # Portable desktop data folder
 data/
 .claude/
+.vercel
+.env*.local
+
+# Large binaries kept out of the repo
+*.apk
+*.deb

@@ -184,9 +184,9 @@ def _env_models(var_name: str, defaults: list) -> list:
 
 # Gemini-only model chain. Env override: GEMINI_MODELS="m1,m2".
 GEMINI_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
+    "gemini-3.5-flash",
+    "gemini-3.8-flash",
+    "gemini-3.1-flash-lite",
 ]
 
 
@@ -263,7 +263,7 @@ def _call_gemini(api_key: str, prompt: str, system_prompt: str, all_images: list
             "User-Agent": "Mozilla/5.0"
         })
         try:
-            with urllib.request.urlopen(req, timeout=25) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 res_data = json.loads(resp.read().decode('utf-8'))
                 candidates = res_data.get('candidates', [])
                 if candidates and 'content' in candidates[0] and 'parts' in candidates[0]['content']:
