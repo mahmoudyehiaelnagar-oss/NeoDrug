@@ -292,6 +292,9 @@ body {
       <p class="desc">مساعد إكلينيكي مدعوم بالذكاء الاصطناعي الفوري ومتصل بقاعدة بيانات الأدوية المصرية (9,747 صنف). يسأل ويجيب عن الجرعات، الأمراض، الأعراض، والتداخلات والبدائل.</p>
 
       <div class="card" style="margin-bottom:0;">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+          <button id="clearChatBtn" type="button" title="حذف كل المحادثة والبدء من جديد" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:4px 10px;font-size:11.5px;font-family:inherit;cursor:pointer;">🗑️ مسح المحادثة</button>
+        </div>
         <div id="chatBox" class="chat-box">
           <div class="msg ai">أهلاً بك! أنا مساعد Neo Drug الذكي. اسألني عن أي مرض، عرض طبي (صداع، كحة، حرارة)، دواء، جرعة، أو بديل في السوق المصري، أو ارفع صورة روشتة لتحليلها فوراً! 💊✨</div>
         </div>
@@ -416,17 +419,59 @@ window.addEventListener('DOMContentLoaded', () => {
   let selectedPrescriptionBase64 = null;
   let selectedLabBase64 = null;
 
-  // ذاكرة الجلسة التفاعلية للمحادثة والروشتات
-  let conversationHistory = [
-    {
-      role: "system",
-      content: `أنت مساعد صيدلاني واستشاري إكلينيكي خبير (Neo AI) متصل بقاعدة بيانات الأدوية المصرية (9,747 صنف).
+  // ذاكرة المحادثة الكاملة: من أول رسالة لآخر رسالة.
+  // تُحفظ في localStorage فتبقى بعد إغلاق الصفحة/التطبيق، مع سقف بالحروف
+  // (وليس بعدد الرسائل) حتى لا نتجاوز نافذة السياق أو حجم التخزين.
+  const CHAT_STORAGE_KEY = 'neo_conversation_history_v1';
+  const HISTORY_SEND_BUDGET = 100000;   // أقصى عدد حروف تُرسل للنموذج
+  const HISTORY_STORE_BUDGET = 140000;  // أقصى عدد حروف تُحفظ محليًا
+
+  const SYSTEM_MESSAGE = {
+    role: "system",
+    content: `أنت مساعد صيدلاني واستشاري إكلينيكي خبير (Neo AI) متصل بقاعدة بيانات الأدوية المصرية (9,747 صنف).
 مهامك الإكلينيكية:
 1. عند قراءة الروشتة: قراءة كل الأدوية والجرعات بالتفصيل مع البدائل المتاحة في السوق المصري.
 2. عند قراءة التحليل: تفسير القيم المخبرية بدقة (وظائف كلى، كبد، سكر، سيولة، صورة دم).
 3. عند فحص الروشتة مع التحليل معاً: مطابقة الحالة سريرياً، تدقيق سلامة الجرعات الموصوفة، واكتشاف أي جرعة خاطئة أو خطيرة مع تحديد الجرعة الصحيحة المعدلة (Dose Adjustment) فوراً.`
+  };
+
+  // يحتفظ بأحدث الرسائل التي تدخل في الميزانية المحددة (يحافظ على الترتيب).
+  function trimHistoryByBudget(messages, budget) {
+    const kept = [];
+    let total = 0;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const len = ((messages[i] && messages[i].content) || '').length + 32;
+      if (kept.length > 0 && total + len > budget) break;
+      kept.push(messages[i]);
+      total += len;
     }
-  ];
+    return kept.reverse();
+  }
+
+  function loadSavedConversation() {
+    try {
+      const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(m => m && (m.role === 'user' || m.role === 'assistant') &&
+        typeof m.content === 'string' && m.content.trim());
+    } catch (e) {
+      return [];
+    }
+  }
+
+  let conversationHistory = [SYSTEM_MESSAGE, ...loadSavedConversation()];
+
+  function persistConversation() {
+    try {
+      const dialogue = conversationHistory.filter(h => h.role !== 'system');
+      const stored = trimHistoryByBudget(dialogue, HISTORY_STORE_BUDGET);
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(stored));
+    } catch (e) {
+      console.warn('تعذر حفظ المحادثة محليًا:', e);
+    }
+  }
 
   function updateAnalyzeBtnState() {
     if (selectedPrescriptionBase64 && selectedLabBase64) {
@@ -615,12 +660,14 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function callAIAPI(promptText, imagesInput = null) {
-    const historyToSend = conversationHistory
+    const dialogue = conversationHistory
       .filter(h => h.role !== 'system')
       .map(h => ({
         role: h.role,
         content: typeof h.content === 'string' ? h.content : (h.summary || promptText || 'تحليل صورة روشتة')
       }));
+    // الذاكرة كاملة (من أول رسالة) مع سقف بالحروف فقط عند تجاوز النافذة.
+    const historyToSend = trimHistoryByBudget(dialogue, HISTORY_SEND_BUDGET);
 
     try {
       const res = await window.api.chat(promptText, imagesInput, historyToSend);
@@ -635,9 +682,7 @@ window.addEventListener('DOMContentLoaded', () => {
         content: assistantReply
       });
 
-      if (conversationHistory.length > 12) {
-        conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-10)];
-      }
+      persistConversation();
 
       return { text: assistantReply, isTruncated: res.isTruncated || false };
     } catch (err) {
@@ -696,6 +741,34 @@ window.addEventListener('DOMContentLoaded', () => {
     renderResponseWithContinuation(loadingDiv, aiResponse);
     chatBox.scrollTop = chatBox.scrollHeight;
   };
+
+  // استرجاع المحادثة المحفوظة عند فتح الصفحة (تبقى بعد إغلاق التطبيق)
+  function restoreConversationUI() {
+    const saved = conversationHistory.filter(h => h.role !== 'system');
+    if (!saved.length) return;
+    saved.forEach(h => {
+      const div = document.createElement('div');
+      div.className = 'msg ' + (h.role === 'user' ? 'user' : 'ai');
+      if (h.role === 'user') {
+        div.textContent = h.content;
+      } else {
+        div.innerHTML = formatClinicalMarkdown(h.content);
+      }
+      chatBox.appendChild(div);
+    });
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+  restoreConversationUI();
+
+  const clearChatBtn = document.getElementById('clearChatBtn');
+  if (clearChatBtn) {
+    clearChatBtn.addEventListener('click', () => {
+      if (!confirm('هل تريد مسح المحادثة بالكامل والبدء من جديد؟')) return;
+      conversationHistory = [SYSTEM_MESSAGE];
+      try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch (e) { /* ignore */ }
+      chatBox.innerHTML = '<div class="msg ai">أهلاً بك! أنا مساعد Neo Drug الذكي. اسألني عن أي مرض، عرض طبي (صداع، كحة، حرارة)، دواء، جرعة، أو بديل في السوق المصري، أو ارفع صورة روشتة لتحليلها فوراً! 💊✨</div>';
+    });
+  }
 
   sendBtn.addEventListener('click', handleSend);
   chatInput.addEventListener('keypress', (e) => {
