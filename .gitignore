@@ -16,3 +16,5 @@ build/
 # Portable desktop data folder
 data/
 .claude/
+.vercel
+.env*.local

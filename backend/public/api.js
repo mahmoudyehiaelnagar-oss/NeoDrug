@@ -368,7 +368,7 @@ window.api = {
         });
         contents.push({ role: "user", parts });
 
-        const geminiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(geminiKey), {
+        const geminiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + encodeURIComponent(geminiKey), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
